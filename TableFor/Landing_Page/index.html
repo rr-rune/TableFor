@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TableFor — Your table is set.</title>
+<meta name="description" content="Discover hand-vetted restaurants across Angeles City and Pampanga, and book an instantly confirmed table with TableFor.">
+<link rel="icon" href="data:,">
+<script>document.documentElement.classList.add('js');</script>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<!-- ============ HEADER ============ -->
+<header class="site-header" id="siteHeader">
+  <div class="header-inner">
+    <a href="#" class="logo" aria-label="TableFor home">TableFor<span class="logo-dot">.</span></a>
+
+    <nav class="main-nav" id="mainNav" aria-label="Primary">
+      <ul class="nav-list">
+        <li><a href="#" class="nav-link is-active">Home</a></li>
+        <li><a href="#guides" class="nav-link">Collections</a></li>
+        <li><a href="#trending" class="nav-link">Trending</a></li>
+        <li><a href="#about" class="nav-link">About Us</a></li>
+      </ul>
+    </nav>
+
+    <div class="header-actions">
+      <a href="#" class="host-link">Host a Restaurant</a>
+      <a href="#" class="btn btn-dark btn-sm">Sign In</a>
+      <button class="nav-toggle" id="navToggle" aria-label="Open menu" aria-expanded="false" aria-controls="mainNav">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- ============ HERO ============ -->
+  <section class="hero">
+    <div class="hero-media" aria-hidden="true"></div>
+    <div class="hero-scrim" aria-hidden="true"></div>
+
+    <div class="hero-inner">
+      <p class="eyebrow eyebrow-light"><span class="dot"></span>Instant Bookings &amp; Culinary Discoveries</p>
+      <h1 class="hero-title">Your table is set. <em>Discover</em> &amp; book instant culinary retreats.</h1>
+      <p class="hero-sub">Explore the city's finest dining scenes, curated lists by critics, and secure instantly confirmed reservations for any occasion.</p>
+
+      <form class="search-card" aria-label="Find a table">
+        <div class="search-field search-field-loc">
+          <span class="search-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-7-6.1-7-11.5A7 7 0 0 1 19 9.5C19 14.9 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
+          </span>
+          <div class="field-input-wrap">
+            <label for="loc">City or Neighborhood</label>
+            <input id="loc" type="text" value="Angeles City, Pampanga" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="locDropdown">
+            <span class="loc-field-icons">
+              <button type="button" class="loc-clear" id="locClear" aria-label="Clear location" tabindex="-1">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6 6 18"/></svg>
+              </button>
+              <span class="loc-chevron" id="locChevron" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+              </span>
+            </span>
+            <div class="loc-dropdown" id="locDropdown" role="listbox" aria-label="Suggested locations">
+              <div class="loc-dropdown-inner" id="locDropdownInner"></div>
+            </div>
+          </div>
+        </div>
+        <div class="search-divider" aria-hidden="true"></div>
+        <div class="search-field search-field-date">
+          <span class="search-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M8 3v4M16 3v4M3.5 10h17"/></svg>
+          </span>
+          <div class="field-input-wrap">
+            <label for="dt">Date &amp; Time</label>
+            <span class="dt-input-wrap">
+              <input id="dt" type="text" value="" placeholder="Pick a date and time" autocomplete="off" readonly role="combobox" aria-haspopup="dialog" aria-expanded="false" aria-controls="datePopover">
+              <span class="dt-chevron" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+              </span>
+            </span>
+            <div class="date-popover" id="datePopover" role="dialog" aria-label="Choose date and time">
+              <div class="date-quick" role="group" aria-label="Quick dates">
+                <button type="button" class="date-chip" data-quick="today">Today</button>
+                <button type="button" class="date-chip" data-quick="tomorrow">Tomorrow</button>
+                <button type="button" class="date-chip" data-quick="weekend">Sat</button>
+              </div>
+              <div class="date-popover-header">
+                <button type="button" class="cal-nav" id="calPrev" aria-label="Previous month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button>
+                <span class="cal-month-label" id="calMonthLabel" aria-live="polite"></span>
+                <button type="button" class="cal-nav" id="calNext" aria-label="Next month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+              </div>
+              <div class="cal-weekdays" aria-hidden="true">
+                <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+              </div>
+              <div class="cal-grid" id="calGrid" role="group" aria-label="Calendar"></div>
+              <div class="time-head">
+                <span id="timeLabel">Time</span>
+                <span class="time-note" id="timeNote"></span>
+              </div>
+              <div class="time-grid" id="timeGrid" role="listbox" aria-labelledby="timeLabel"></div>
+              <button type="button" class="btn btn-amber btn-sm date-popover-done" id="dateDone">Done</button>
+            </div>
+          </div>
+        </div>
+        <div class="search-divider" aria-hidden="true"></div>
+        <div class="search-field guest-field">
+          <span class="search-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><circle cx="17.5" cy="9" r="2.6"/><path d="M15.5 14.3c2.8.4 4.9 2.5 5 5.7"/></svg>
+          </span>
+          <div>
+            <label id="guestLabel">Table For</label>
+            <div class="guest-stepper">
+              <button type="button" class="step-btn" id="guestMinus" aria-label="Decrease guests">&minus;</button>
+              <span id="guestCount" class="guest-count" role="status" aria-labelledby="guestLabel guestCount">2 Guests</span>
+              <button type="button" class="step-btn" id="guestPlus" aria-label="Increase guests">+</button>
+            </div>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-amber search-submit">Find Tables</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ============ STATS ============ -->
+  <section class="stats">
+    <div class="stat">
+      <span class="stat-num">1,200+</span>
+      <span class="stat-label">Verified Eateries</span>
+    </div>
+    <div class="stat">
+      <span class="stat-num">480k+</span>
+      <span class="stat-label">Confirmed Seats</span>
+    </div>
+    <div class="stat">
+      <span class="stat-num">4.9/5</span>
+      <span class="stat-label">Average Diner Rating</span>
+    </div>
+  </section>
+
+  <!-- ============ CURATED GUIDES ============ -->
+  <section class="section" id="guides">
+    <div class="section-head">
+      <div>
+        <p class="eyebrow"><span class="dot"></span>Curated Culinary Guides</p>
+        <h2>Hand-picked selections for your mood</h2>
+      </div>
+      <a href="#" class="link-arrow">View All Guides <span aria-hidden="true">&rarr;</span></a>
+    </div>
+
+    <div class="guide-grid reveal-group">
+      <a href="#" class="guide-card reveal">
+        <img src="https://images.pexels.com/photos/37968303/pexels-photo-37968303.jpeg" alt="Dimly lit cocktail bar with warm lighting, set up for a date night" loading="lazy">
+        <div class="guide-overlay">
+          <span class="guide-spots">18 Spots</span>
+          <h3>Intimate Date Nights</h3>
+          <span class="guide-cta">Explore Guide <span aria-hidden="true">&rsaquo;</span></span>
+        </div>
+      </a>
+      <a href="#" class="guide-card reveal">
+        <img src="https://images.pexels.com/photos/19279817/pexels-photo-19279817.jpeg" alt="Brunch table set with wine glasses and fresh dishes in daylight" loading="lazy">
+        <div class="guide-overlay">
+          <span class="guide-spots">24 Spots</span>
+          <h3>Weekend Brunching</h3>
+          <span class="guide-cta">Explore Guide <span aria-hidden="true">&rsaquo;</span></span>
+        </div>
+      </a>
+      <a href="#" class="guide-card reveal">
+        <img src="https://images.pexels.com/photos/39604990/pexels-photo-39604990.jpeg" alt="Warm, lamp-lit bar counter tucked into a quiet corner" loading="lazy">
+        <div class="guide-overlay">
+          <span class="guide-spots">12 Spots</span>
+          <h3>Hidden Neighborhood Gems</h3>
+          <span class="guide-cta">Explore Guide <span aria-hidden="true">&rsaquo;</span></span>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <!-- ============ TRENDING ============ -->
+  <section class="section section-alt" id="trending">
+    <div class="section-head">
+      <div>
+        <p class="eyebrow"><span class="dot"></span>Verified Culinary Standouts</p>
+        <h2>Trending hotspots this week</h2>
+      </div>
+      <a href="#" class="link-arrow">Browse All Eateries <span aria-hidden="true">&rarr;</span></a>
+    </div>
+
+    <div class="restaurant-grid reveal-group">
+      <article class="restaurant-card reveal" tabindex="0" role="button" aria-haspopup="dialog"
+        data-restaurant-id="sage"
+        data-name="Sage by Ardesia"
+        data-cuisine="Italian Cuisine"
+        data-price="$$$"
+        data-loc="Margot, Angeles City, Pampanga"
+        data-rating="4.9"
+        data-reviews="234"
+        data-photo="https://dynamic-media-cdn.tripadvisor.com/media/photo-o/30/de/9b/e7/sage-by-ardesia-located.jpg?w=900&h=500&s=1"
+        data-desc="A candlelit dining room serving coastal Italian plates and small-batch wines, tucked into a quiet corner of Margot."
+        data-phone="+639171234567"
+        data-maps-query="Sage by Ardesia, Margot, Angeles City, Pampanga">
+        <div class="restaurant-photo">
+          <img src="https://dynamic-media-cdn.tripadvisor.com/media/photo-o/30/de/9b/e7/sage-by-ardesia-located.jpg?w=900&h=500&s=1" alt="Storefront of Sage by Ardesia restaurant" loading="lazy">
+          <span class="photo-count" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="14" rx="2.5"/><path d="M8 6 9.5 3.5h5L16 6"/><circle cx="12" cy="13" r="3.5"/></svg>
+            8
+          </span>
+          <button type="button" class="save-btn" aria-label="Save Sage by Ardesia" aria-pressed="false" data-action="save">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20.3S3.5 15.4 3.5 9.4A4.9 4.9 0 0 1 12 6.3a4.9 4.9 0 0 1 8.5 3.1c0 6-8.5 10.9-8.5 10.9Z"/></svg>
+          </button>
+        </div>
+        <div class="restaurant-body">
+          <div class="restaurant-top-row">
+            <h3>Sage by Ardesia</h3>
+            <span class="price">$$$</span>
+          </div>
+          <div class="restaurant-tags-row">
+            <span class="tag">Italian</span>
+            <span class="tag tag-outline">Fine Dining</span>
+          </div>
+          <p class="restaurant-loc"><span class="pin-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.1-7-11.5A7 7 0 0 1 19 9.5C19 14.9 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.2"/></svg></span> Margot, Angeles City &middot; 0.8 km</p>
+          <div class="restaurant-status-row">
+            <span class="rating"><span class="stars" aria-hidden="true">&#9733;</span> 4.9 <span class="reviews">(234)</span></span>
+            <span class="status-sep" aria-hidden="true">&bull;</span>
+            <span class="status is-open">Open Now</span>
+            <span class="status-detail">Closes 11 PM</span>
+          </div>
+          <div class="restaurant-actions">
+            <button type="button" class="btn btn-amber btn-sm restaurant-book-btn" data-action="book">Book a Table</button>
+            <a class="icon-btn" href="https://www.google.com/maps/search/?api=1&query=Sage%20by%20Ardesia%2C%20Margot%2C%20Angeles%20City%2C%20Pampanga" target="_blank" rel="noopener" aria-label="Get directions to Sage by Ardesia" data-action="directions">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3,11 21,3 13,21 11,13 3,11"/></svg>
+            </a>
+            <a class="icon-btn" href="tel:+639171234567" aria-label="Call Sage by Ardesia" data-action="call">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4.5 4h3.7l1.6 4.5-2 1.7a12.3 12.3 0 0 0 6 6l1.7-2 4.5 1.6v3.7c0 1-.9 1.8-1.9 1.7A16.5 16.5 0 0 1 3 5.9C2.9 4.9 3.7 4 4.5 4Z"/></svg>
+            </a>
+          </div>
+        </div>
+      </article>
+
+      <article class="restaurant-card reveal" tabindex="0" role="button" aria-haspopup="dialog"
+        data-restaurant-id="rustica"
+        data-name="Rustica"
+        data-cuisine="Filipino Cuisine"
+        data-price="$$$$"
+        data-loc="Friendship, Angeles City, Pampanga"
+        data-rating="4.8"
+        data-reviews="189"
+        data-photo="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQydifoaavfvC0as0XJ7FaQue7AnjE7ff6hy-e2pCjNczB21CG3jwGU5Ec&s=10"
+        data-desc="Modern Filipino comfort food built around live-fire cooking and heirloom recipes, reimagined for a night out."
+        data-phone="+639189876543"
+        data-maps-query="Rustica, Friendship, Angeles City, Pampanga">
+        <div class="restaurant-photo">
+          <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQydifoaavfvC0as0XJ7FaQue7AnjE7ff6hy-e2pCjNczB21CG3jwGU5Ec&s=10" alt="Dining room at Rustica restaurant" loading="lazy">
+          <span class="photo-count" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="14" rx="2.5"/><path d="M8 6 9.5 3.5h5L16 6"/><circle cx="12" cy="13" r="3.5"/></svg>
+            14
+          </span>
+          <button type="button" class="save-btn" aria-label="Save Rustica" aria-pressed="false" data-action="save">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20.3S3.5 15.4 3.5 9.4A4.9 4.9 0 0 1 12 6.3a4.9 4.9 0 0 1 8.5 3.1c0 6-8.5 10.9-8.5 10.9Z"/></svg>
+          </button>
+        </div>
+        <div class="restaurant-body">
+          <div class="restaurant-top-row">
+            <h3>Rustica</h3>
+            <span class="price">$$$$</span>
+          </div>
+          <div class="restaurant-tags-row">
+            <span class="tag">Filipino</span>
+            <span class="tag tag-outline">Live Fire</span>
+          </div>
+          <p class="restaurant-loc"><span class="pin-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.1-7-11.5A7 7 0 0 1 19 9.5C19 14.9 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.2"/></svg></span> Friendship, Angeles City &middot; 1.4 km</p>
+          <div class="restaurant-status-row">
+            <span class="rating"><span class="stars" aria-hidden="true">&#9733;</span> 4.8 <span class="reviews">(189)</span></span>
+            <span class="status-sep" aria-hidden="true">&bull;</span>
+            <span class="status is-open">Open Now</span>
+            <span class="status-detail">Closes 10 PM</span>
+          </div>
+          <div class="restaurant-actions">
+            <button type="button" class="btn btn-amber btn-sm restaurant-book-btn" data-action="book">Book a Table</button>
+            <a class="icon-btn" href="https://www.google.com/maps/search/?api=1&query=Rustica%2C%20Friendship%2C%20Angeles%20City%2C%20Pampanga" target="_blank" rel="noopener" aria-label="Get directions to Rustica" data-action="directions">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3,11 21,3 13,21 11,13 3,11"/></svg>
+            </a>
+            <a class="icon-btn" href="tel:+639189876543" aria-label="Call Rustica" data-action="call">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4.5 4h3.7l1.6 4.5-2 1.7a12.3 12.3 0 0 0 6 6l1.7-2 4.5 1.6v3.7c0 1-.9 1.8-1.9 1.7A16.5 16.5 0 0 1 3 5.9C2.9 4.9 3.7 4 4.5 4Z"/></svg>
+            </a>
+          </div>
+        </div>
+      </article>
+
+      <article class="restaurant-card reveal" tabindex="0" role="button" aria-haspopup="dialog"
+        data-restaurant-id="trattoria"
+        data-name="Trattoria Altrov&eacute;"
+        data-cuisine="Italian Cuisine"
+        data-price="$$$$$"
+        data-loc="Don Juico Ave, Angeles City, Pampanga"
+        data-rating="5.0"
+        data-reviews="142"
+        data-photo="https://cdn.manilastandard.net/wp-content/uploads/2024/02/Altrove-Store-Front-1.png"
+        data-desc="An intimate trattoria known for handmade pasta, a tightly curated wine list, and candlelit tables built for lingering."
+        data-phone="+639201122334"
+        data-maps-query="Trattoria Altrove, Don Juico Ave, Angeles City, Pampanga">
+        <div class="restaurant-photo">
+          <img src="https://cdn.manilastandard.net/wp-content/uploads/2024/02/Altrove-Store-Front-1.png" alt="Storefront of Trattoria Altrov&eacute;" loading="lazy">
+          <span class="photo-count" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="14" rx="2.5"/><path d="M8 6 9.5 3.5h5L16 6"/><circle cx="12" cy="13" r="3.5"/></svg>
+            6
+          </span>
+          <button type="button" class="save-btn" aria-label="Save Trattoria Altrov&eacute;" aria-pressed="false" data-action="save">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20.3S3.5 15.4 3.5 9.4A4.9 4.9 0 0 1 12 6.3a4.9 4.9 0 0 1 8.5 3.1c0 6-8.5 10.9-8.5 10.9Z"/></svg>
+          </button>
+        </div>
+        <div class="restaurant-body">
+          <div class="restaurant-top-row">
+            <h3>Trattoria Altrov&eacute;</h3>
+            <span class="price">$$$$$</span>
+          </div>
+          <div class="restaurant-tags-row">
+            <span class="tag">Italian</span>
+            <span class="tag tag-outline">Romantic</span>
+          </div>
+          <p class="restaurant-loc"><span class="pin-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.1-7-11.5A7 7 0 0 1 19 9.5C19 14.9 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.2"/></svg></span> Don Juico Ave &middot; 2.1 km</p>
+          <div class="restaurant-status-row">
+            <span class="rating"><span class="stars" aria-hidden="true">&#9733;</span> 5.0 <span class="reviews">(142)</span></span>
+            <span class="status-sep" aria-hidden="true">&bull;</span>
+            <span class="status is-closed">Closed</span>
+            <span class="status-detail">Opens 6 PM</span>
+          </div>
+          <div class="restaurant-actions">
+            <button type="button" class="btn btn-amber btn-sm restaurant-book-btn" data-action="book">Book a Table</button>
+            <a class="icon-btn" href="https://www.google.com/maps/search/?api=1&query=Trattoria%20Altrove%2C%20Don%20Juico%20Ave%2C%20Angeles%20City%2C%20Pampanga" target="_blank" rel="noopener" aria-label="Get directions to Trattoria Altrov&eacute;" data-action="directions">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3,11 21,3 13,21 11,13 3,11"/></svg>
+            </a>
+            <a class="icon-btn" href="tel:+639201122334" aria-label="Call Trattoria Altrov&eacute;" data-action="call">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4.5 4h3.7l1.6 4.5-2 1.7a12.3 12.3 0 0 0 6 6l1.7-2 4.5 1.6v3.7c0 1-.9 1.8-1.9 1.7A16.5 16.5 0 0 1 3 5.9C2.9 4.9 3.7 4 4.5 4Z"/></svg>
+            </a>
+          </div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- ============ RESTAURANT DETAIL / BOOKING MODAL ============ -->
+  <div class="modal-overlay" id="restaurantModalOverlay" hidden>
+    <div class="restaurant-modal" role="dialog" aria-modal="true" aria-labelledby="modalRestName">
+      <button type="button" class="modal-close" id="modalClose" aria-label="Close">&times;</button>
+
+      <div class="modal-photo" id="modalPhoto"></div>
+
+      <div class="modal-body">
+        <div class="modal-view" id="modalDetailView">
+          <div class="restaurant-meta-row">
+            <span class="tag" id="modalCuisine"></span>
+            <span class="price" id="modalPrice"></span>
+          </div>
+          <h3 id="modalRestName"></h3>
+          <p class="restaurant-loc">
+            <span class="pin-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.1-7-11.5A7 7 0 0 1 19 9.5C19 14.9 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.2"/></svg></span>
+            <span id="modalLoc"></span>
+          </p>
+          <p class="rating"><span class="stars" aria-hidden="true">&#9733;</span> <span id="modalRating"></span> <span class="reviews" id="modalReviews"></span></p>
+          <p class="modal-desc" id="modalDesc"></p>
+          <button type="button" class="btn btn-amber modal-book-btn" id="modalBookBtn">Book This Table</button>
+        </div>
+
+        <form class="modal-view modal-booking-view" id="modalBookingView" hidden>
+          <button type="button" class="link-arrow modal-back" id="modalBack"><span aria-hidden="true">&larr;</span> Back to details</button>
+          <h3 class="modal-booking-title">Reserve at <span id="modalBookingName"></span></h3>
+
+          <label class="modal-field">
+            <span>Date &amp; Time</span>
+            <input type="text" id="modalBookingDate" value="Tonight, 8:00 PM" readonly>
+          </label>
+          <label class="modal-field">
+            <span>Party Size</span>
+            <select id="modalBookingGuests" name="partySize">
+              <option>1 Guest</option>
+              <option selected>2 Guests</option>
+              <option>3 Guests</option>
+              <option>4 Guests</option>
+              <option>5 Guests</option>
+              <option>6+ Guests</option>
+            </select>
+          </label>
+          <label class="modal-field">
+            <span>Full Name</span>
+            <input type="text" id="modalBookingName2" name="fullName" placeholder="Juan Dela Cruz" autocomplete="name" required minlength="2">
+          </label>
+          <label class="modal-field">
+            <span>Mobile Number</span>
+            <input type="tel" id="modalBookingPhone" name="mobile" placeholder="0917 123 4567" autocomplete="tel" inputmode="tel" required pattern="(\+63|0)9\d{2}\s?\d{3}\s?\d{4}" title="Use a PH mobile number, e.g. 0917 123 4567">
+          </label>
+
+          <button type="submit" class="btn btn-amber modal-confirm-btn">Confirm Reservation</button>
+          <p class="modal-booking-note">You'll receive an instant confirmation by SMS.</p>
+        </form>
+
+        <div class="modal-view modal-confirm-view" id="modalConfirmView" hidden>
+          <div class="confirm-check" aria-hidden="true">&#10003;</div>
+          <h3>Table Reserved</h3>
+          <p>Your table at <strong id="modalConfirmName"></strong> is confirmed for <span id="modalConfirmWhen"></span>.</p>
+          <button type="button" class="btn btn-outline-dark" id="modalDoneBtn">Done</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ TESTIMONIALS ============ -->
+  <section class="section testimonials">
+    <p class="eyebrow center"><span class="dot"></span>Verified Diner Reviews</p>
+    <h2 class="center">What customers are saying</h2>
+
+    <div class="testimonial-grid reveal-group">
+      <blockquote class="testimonial-card reveal">
+        <div class="stars-row" aria-hidden="true">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <p>&ldquo;TableFor found us a private nook in Medina when every other venue was booked. Instantly verified. An essential travel companion.&rdquo;</p>
+        <footer>
+          <strong>Ben Jaren Tayao</strong>
+          <span>Mabalacat Food Critic</span>
+        </footer>
+      </blockquote>
+      <blockquote class="testimonial-card reveal">
+        <div class="stars-row" aria-hidden="true">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <p>&ldquo;Booking was effortless. The neighborhood curation was exactly what we needed to bypass generic tourist spots for local flavor.&rdquo;</p>
+        <footer>
+          <strong>Danny Russel Dimagiba</strong>
+          <span>Owner of Grumpy Joe</span>
+        </footer>
+      </blockquote>
+      <blockquote class="testimonial-card reveal">
+        <div class="stars-row" aria-hidden="true">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <p>&ldquo;Every reservation is iron-clad. TableFor has fundamentally changed our corporate dining workflow and dinner hosting.&rdquo;</p>
+        <footer>
+          <strong>Jan &ldquo;Bacosa&rdquo; Alfonso</strong>
+          <span>Former UFC Middleweight Champion 2023</span>
+        </footer>
+      </blockquote>
+    </div>
+  </section>
+
+  <!-- ============ HOW IT WORKS ============ -->
+  <section class="section" id="how">
+    <p class="eyebrow center"><span class="dot"></span>Dining Simplified</p>
+    <h2 class="center">How TableFor works</h2>
+
+    <div class="steps reveal-group">
+      <div class="step reveal">
+        <span class="step-num">01</span>
+        <h3>Select Location</h3>
+        <p>Browse hand-vetted tables across curated neighborhoods and top cuisines.</p>
+      </div>
+      <div class="step reveal">
+        <span class="step-num">02</span>
+        <h3>Choose Your Slot</h3>
+        <p>View real-time table availability and customize party size in seconds.</p>
+      </div>
+      <div class="step reveal">
+        <span class="step-num">03</span>
+        <h3>Instant Confirmed Bookings</h3>
+        <p>No phone tags, no hold times. Arrive and tell them you are booked with TableFor.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FOR OWNERS ============ -->
+  <section class="owners" id="about">
+    <div class="owners-inner">
+      <div class="owners-copy reveal">
+        <p class="eyebrow eyebrow-light"><span class="dot"></span>For Restaurant Owners</p>
+        <h2>Elevate your guest experience. Fill every seat instantly.</h2>
+        <p>Join the elite circle of TableFor culinary partners. Leverage premium placement, critic endorsements, and native modern reservation tracking to supercharge your kitchen capacity.</p>
+        <div class="owners-actions">
+          <a href="#" class="btn btn-amber">Partner With Us</a>
+          <a href="#" class="btn btn-outline-light">Explore Owner Portal</a>
+        </div>
+      </div>
+      <div class="owners-media reveal" aria-hidden="true"></div>
+    </div>
+  </section>
+
+  <!-- ============ MOBILE APP ============ -->
+  <section class="section app-section">
+    <div class="app-grid">
+      <div class="app-copy reveal">
+        <p class="eyebrow"><span class="dot"></span>TableFor Mobile</p>
+        <h2>A personal concierge in your pocket</h2>
+        <p>Get exclusive notifications on last-minute cancellations, access members-only tasting menus, and manage your reservation bookings on the fly with the companion TableFor app.</p>
+        <div class="app-buttons">
+          <a href="#" class="btn btn-dark">
+            <svg class="store-icon" viewBox="0 -1.6 24 27.2" aria-hidden="true"><path fill="currentColor" d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zm3.573-3.258c.832-1.013 1.39-2.42 1.234-3.622-1.196.052-2.635.79-3.494 1.802-.766.895-1.442 2.33-1.26 3.5 1.171.09 2.376-.598 3.52-1.68z"/></svg>
+            <span class="store-label">App Store</span>
+          </a>
+          <a href="#" class="btn btn-outline-dark">
+            <svg class="store-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="#00C2FF" d="M3.6 2.4c-.4.4-.6.9-.6 1.6v16c0 .7.2 1.2.6 1.6l.1.1L12.9 12v-.2L3.7 2.3l-.1.1Z"/>
+              <path fill="#00E676" d="m15.9 15 -3-3v-.2l3-3 .1.1 3.6 2c1 .6 1 1.5 0 2.1l-3.6 2-.1-.1Z"/>
+              <path fill="#FF3D57" d="M16 15 12.9 12l-9.2 9.2c.3.4.9.4 1.5.1L16 15Z"/>
+              <path fill="#FFC400" d="M16 9 8.2 4.6c-.6-.3-1.2-.3-1.5.1L12.9 12 16 9Z"/>
+            </svg>
+            <span class="store-label">Google Play</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="app-qr-card reveal">
+        <div class="qr-wrap">
+          <svg class="qr-code" viewBox="0 0 31 31" role="img" aria-label="QR code to install the TableFor app">
+            <rect width="31" height="31" fill="#fff"/>
+            <g fill="#1D1C18">
+<rect x="1" y="1" width="7" height="1"/>
+<rect x="10" y="1" width="2" height="1"/>
+<rect x="14" y="1" width="1" height="1"/>
+<rect x="17" y="1" width="1" height="1"/>
+<rect x="19" y="1" width="2" height="1"/>
+<rect x="23" y="1" width="7" height="1"/>
+<rect x="1" y="2" width="1" height="1"/>
+<rect x="7" y="2" width="1" height="1"/>
+<rect x="9" y="2" width="3" height="1"/>
+<rect x="15" y="2" width="7" height="1"/>
+<rect x="23" y="2" width="1" height="1"/>
+<rect x="29" y="2" width="1" height="1"/>
+<rect x="1" y="3" width="1" height="1"/>
+<rect x="3" y="3" width="3" height="1"/>
+<rect x="7" y="3" width="1" height="1"/>
+<rect x="10" y="3" width="1" height="1"/>
+<rect x="12" y="3" width="4" height="1"/>
+<rect x="17" y="3" width="1" height="1"/>
+<rect x="20" y="3" width="1" height="1"/>
+<rect x="23" y="3" width="1" height="1"/>
+<rect x="25" y="3" width="3" height="1"/>
+<rect x="29" y="3" width="1" height="1"/>
+<rect x="1" y="4" width="1" height="1"/>
+<rect x="3" y="4" width="3" height="1"/>
+<rect x="7" y="4" width="1" height="1"/>
+<rect x="12" y="4" width="1" height="1"/>
+<rect x="14" y="4" width="3" height="1"/>
+<rect x="19" y="4" width="2" height="1"/>
+<rect x="23" y="4" width="1" height="1"/>
+<rect x="25" y="4" width="3" height="1"/>
+<rect x="29" y="4" width="1" height="1"/>
+<rect x="1" y="5" width="1" height="1"/>
+<rect x="3" y="5" width="3" height="1"/>
+<rect x="7" y="5" width="1" height="1"/>
+<rect x="9" y="5" width="3" height="1"/>
+<rect x="13" y="5" width="1" height="1"/>
+<rect x="15" y="5" width="1" height="1"/>
+<rect x="20" y="5" width="1" height="1"/>
+<rect x="23" y="5" width="1" height="1"/>
+<rect x="25" y="5" width="3" height="1"/>
+<rect x="29" y="5" width="1" height="1"/>
+<rect x="1" y="6" width="1" height="1"/>
+<rect x="7" y="6" width="1" height="1"/>
+<rect x="12" y="6" width="1" height="1"/>
+<rect x="14" y="6" width="1" height="1"/>
+<rect x="18" y="6" width="4" height="1"/>
+<rect x="23" y="6" width="1" height="1"/>
+<rect x="29" y="6" width="1" height="1"/>
+<rect x="1" y="7" width="7" height="1"/>
+<rect x="9" y="7" width="1" height="1"/>
+<rect x="11" y="7" width="1" height="1"/>
+<rect x="13" y="7" width="1" height="1"/>
+<rect x="15" y="7" width="1" height="1"/>
+<rect x="17" y="7" width="1" height="1"/>
+<rect x="19" y="7" width="1" height="1"/>
+<rect x="21" y="7" width="1" height="1"/>
+<rect x="23" y="7" width="7" height="1"/>
+<rect x="10" y="8" width="2" height="1"/>
+<rect x="14" y="8" width="2" height="1"/>
+<rect x="17" y="8" width="2" height="1"/>
+<rect x="21" y="8" width="1" height="1"/>
+<rect x="1" y="9" width="1" height="1"/>
+<rect x="3" y="9" width="1" height="1"/>
+<rect x="5" y="9" width="1" height="1"/>
+<rect x="7" y="9" width="1" height="1"/>
+<rect x="12" y="9" width="2" height="1"/>
+<rect x="15" y="9" width="2" height="1"/>
+<rect x="18" y="9" width="4" height="1"/>
+<rect x="25" y="9" width="1" height="1"/>
+<rect x="28" y="9" width="1" height="1"/>
+<rect x="3" y="10" width="1" height="1"/>
+<rect x="5" y="10" width="2" height="1"/>
+<rect x="12" y="10" width="1" height="1"/>
+<rect x="15" y="10" width="2" height="1"/>
+<rect x="22" y="10" width="2" height="1"/>
+<rect x="26" y="10" width="1" height="1"/>
+<rect x="29" y="10" width="1" height="1"/>
+<rect x="1" y="11" width="2" height="1"/>
+<rect x="4" y="11" width="1" height="1"/>
+<rect x="7" y="11" width="1" height="1"/>
+<rect x="11" y="11" width="1" height="1"/>
+<rect x="14" y="11" width="1" height="1"/>
+<rect x="21" y="11" width="3" height="1"/>
+<rect x="25" y="11" width="1" height="1"/>
+<rect x="27" y="11" width="3" height="1"/>
+<rect x="1" y="12" width="1" height="1"/>
+<rect x="4" y="12" width="3" height="1"/>
+<rect x="10" y="12" width="1" height="1"/>
+<rect x="12" y="12" width="2" height="1"/>
+<rect x="16" y="12" width="1" height="1"/>
+<rect x="18" y="12" width="3" height="1"/>
+<rect x="25" y="12" width="1" height="1"/>
+<rect x="28" y="12" width="1" height="1"/>
+<rect x="3" y="13" width="7" height="1"/>
+<rect x="11" y="13" width="1" height="1"/>
+<rect x="13" y="13" width="1" height="1"/>
+<rect x="17" y="13" width="2" height="1"/>
+<rect x="22" y="13" width="2" height="1"/>
+<rect x="26" y="13" width="1" height="1"/>
+<rect x="28" y="13" width="2" height="1"/>
+<rect x="2" y="14" width="1" height="1"/>
+<rect x="5" y="14" width="2" height="1"/>
+<rect x="9" y="14" width="1" height="1"/>
+<rect x="13" y="14" width="2" height="1"/>
+<rect x="16" y="14" width="3" height="1"/>
+<rect x="21" y="14" width="3" height="1"/>
+<rect x="26" y="14" width="1" height="1"/>
+<rect x="29" y="14" width="1" height="1"/>
+<rect x="1" y="15" width="2" height="1"/>
+<rect x="4" y="15" width="2" height="1"/>
+<rect x="7" y="15" width="2" height="1"/>
+<rect x="11" y="15" width="2" height="1"/>
+<rect x="15" y="15" width="3" height="1"/>
+<rect x="19" y="15" width="1" height="1"/>
+<rect x="21" y="15" width="3" height="1"/>
+<rect x="26" y="15" width="1" height="1"/>
+<rect x="28" y="15" width="2" height="1"/>
+<rect x="1" y="16" width="2" height="1"/>
+<rect x="10" y="16" width="2" height="1"/>
+<rect x="14" y="16" width="2" height="1"/>
+<rect x="17" y="16" width="4" height="1"/>
+<rect x="22" y="16" width="3" height="1"/>
+<rect x="26" y="16" width="1" height="1"/>
+<rect x="28" y="16" width="1" height="1"/>
+<rect x="7" y="17" width="2" height="1"/>
+<rect x="10" y="17" width="1" height="1"/>
+<rect x="12" y="17" width="2" height="1"/>
+<rect x="15" y="17" width="2" height="1"/>
+<rect x="18" y="17" width="1" height="1"/>
+<rect x="22" y="17" width="2" height="1"/>
+<rect x="26" y="17" width="1" height="1"/>
+<rect x="28" y="17" width="2" height="1"/>
+<rect x="3" y="18" width="1" height="1"/>
+<rect x="10" y="18" width="2" height="1"/>
+<rect x="15" y="18" width="2" height="1"/>
+<rect x="18" y="18" width="2" height="1"/>
+<rect x="21" y="18" width="3" height="1"/>
+<rect x="26" y="18" width="2" height="1"/>
+<rect x="29" y="18" width="1" height="1"/>
+<rect x="1" y="19" width="1" height="1"/>
+<rect x="3" y="19" width="1" height="1"/>
+<rect x="6" y="19" width="2" height="1"/>
+<rect x="9" y="19" width="6" height="1"/>
+<rect x="19" y="19" width="1" height="1"/>
+<rect x="22" y="19" width="1" height="1"/>
+<rect x="24" y="19" width="2" height="1"/>
+<rect x="28" y="19" width="2" height="1"/>
+<rect x="2" y="20" width="2" height="1"/>
+<rect x="8" y="20" width="2" height="1"/>
+<rect x="11" y="20" width="3" height="1"/>
+<rect x="16" y="20" width="1" height="1"/>
+<rect x="18" y="20" width="1" height="1"/>
+<rect x="20" y="20" width="1" height="1"/>
+<rect x="23" y="20" width="2" height="1"/>
+<rect x="26" y="20" width="1" height="1"/>
+<rect x="28" y="20" width="1" height="1"/>
+<rect x="1" y="21" width="1" height="1"/>
+<rect x="4" y="21" width="1" height="1"/>
+<rect x="7" y="21" width="1" height="1"/>
+<rect x="9" y="21" width="3" height="1"/>
+<rect x="17" y="21" width="2" height="1"/>
+<rect x="21" y="21" width="5" height="1"/>
+<rect x="9" y="22" width="2" height="1"/>
+<rect x="12" y="22" width="3" height="1"/>
+<rect x="16" y="22" width="6" height="1"/>
+<rect x="25" y="22" width="1" height="1"/>
+<rect x="27" y="22" width="3" height="1"/>
+<rect x="1" y="23" width="7" height="1"/>
+<rect x="10" y="23" width="2" height="1"/>
+<rect x="13" y="23" width="1" height="1"/>
+<rect x="15" y="23" width="3" height="1"/>
+<rect x="19" y="23" width="3" height="1"/>
+<rect x="23" y="23" width="1" height="1"/>
+<rect x="25" y="23" width="2" height="1"/>
+<rect x="28" y="23" width="2" height="1"/>
+<rect x="1" y="24" width="1" height="1"/>
+<rect x="7" y="24" width="1" height="1"/>
+<rect x="12" y="24" width="1" height="1"/>
+<rect x="14" y="24" width="2" height="1"/>
+<rect x="17" y="24" width="2" height="1"/>
+<rect x="21" y="24" width="1" height="1"/>
+<rect x="25" y="24" width="2" height="1"/>
+<rect x="28" y="24" width="1" height="1"/>
+<rect x="1" y="25" width="1" height="1"/>
+<rect x="3" y="25" width="3" height="1"/>
+<rect x="7" y="25" width="1" height="1"/>
+<rect x="9" y="25" width="3" height="1"/>
+<rect x="13" y="25" width="1" height="1"/>
+<rect x="15" y="25" width="2" height="1"/>
+<rect x="19" y="25" width="1" height="1"/>
+<rect x="21" y="25" width="5" height="1"/>
+<rect x="28" y="25" width="1" height="1"/>
+<rect x="1" y="26" width="1" height="1"/>
+<rect x="3" y="26" width="3" height="1"/>
+<rect x="7" y="26" width="1" height="1"/>
+<rect x="10" y="26" width="2" height="1"/>
+<rect x="13" y="26" width="1" height="1"/>
+<rect x="15" y="26" width="2" height="1"/>
+<rect x="20" y="26" width="2" height="1"/>
+<rect x="24" y="26" width="2" height="1"/>
+<rect x="27" y="26" width="1" height="1"/>
+<rect x="1" y="27" width="1" height="1"/>
+<rect x="3" y="27" width="3" height="1"/>
+<rect x="7" y="27" width="1" height="1"/>
+<rect x="9" y="27" width="2" height="1"/>
+<rect x="12" y="27" width="1" height="1"/>
+<rect x="18" y="27" width="1" height="1"/>
+<rect x="20" y="27" width="1" height="1"/>
+<rect x="22" y="27" width="1" height="1"/>
+<rect x="24" y="27" width="3" height="1"/>
+<rect x="29" y="27" width="1" height="1"/>
+<rect x="1" y="28" width="1" height="1"/>
+<rect x="7" y="28" width="1" height="1"/>
+<rect x="11" y="28" width="3" height="1"/>
+<rect x="16" y="28" width="1" height="1"/>
+<rect x="20" y="28" width="3" height="1"/>
+<rect x="24" y="28" width="1" height="1"/>
+<rect x="28" y="28" width="1" height="1"/>
+<rect x="1" y="29" width="7" height="1"/>
+<rect x="9" y="29" width="2" height="1"/>
+<rect x="14" y="29" width="1" height="1"/>
+<rect x="17" y="29" width="1" height="1"/>
+<rect x="21" y="29" width="1" height="1"/>
+<rect x="24" y="29" width="3" height="1"/>
+<rect x="28" y="29" width="2" height="1"/>
+            </g>
+          </svg>
+        </div>
+        <p class="qr-label">Scan to install</p>
+        <ul class="qr-features">
+          <li><span aria-hidden="true">&#10003;</span> 1-Tap Reservation Modifying</li>
+          <li><span aria-hidden="true">&#10003;</span> Exclusive Last Minute Drops</li>
+          <li><span aria-hidden="true">&#10003;</span> Curated Map Overlay</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ============ FOOTER ============ -->
+<footer class="site-footer">
+  <div class="footer-top">
+    <div class="footer-brand">
+      <p class="logo footer-logo">TableFor<span class="logo-dot">.</span></p>
+      <p>Transforming restaurant discovery and table reservations with seamless curation and real-time validation. Your premium culinary companion.</p>
+    </div>
+
+    <nav class="footer-col" aria-label="Discover">
+      <h3>Discover</h3>
+      <ul>
+        <li><a href="#trending">Trending Tables</a></li>
+        <li><a href="#guides">Date Night Spots</a></li>
+        <li><a href="#guides">Weekend Brunches</a></li>
+        <li><a href="#guides">Rooftop Gems</a></li>
+      </ul>
+    </nav>
+
+    <nav class="footer-col" aria-label="Hosts">
+      <h3>Hosts</h3>
+      <ul>
+        <li><a href="#about">Partner Portal</a></li>
+        <li><a href="#about">Pricing Plans</a></li>
+        <li><a href="#">Success Stories</a></li>
+        <li><a href="#">Integration Guides</a></li>
+      </ul>
+    </nav>
+
+    <div class="footer-col">
+      <h3>Culinary Support</h3>
+      <ul>
+        <li><a href="mailto:business@tablefor.com">business@tablefor.com</a></li>
+        <li><a href="tel:+639954638710">+63 995 463 8710</a></li>
+      </ul>
+      <div class="social-row">
+        <a href="#" aria-label="TableFor on Instagram">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.2" cy="6.8" r="1.1" fill="currentColor" stroke="none"/></svg>
+        </a>
+        <a href="#" aria-label="TableFor on Facebook">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14.5 8.5H17V5.3c-.4-.05-1.8-.17-3.4-.17-3.4 0-5.7 2.1-5.7 5.9v2.9H4.5v3.6h3.4V21h3.7v-8.2h3.2l.5-3.6h-3.7V9.4c0-.9.28-1.9 1.9-1.9Z"/></svg>
+        </a>
+        <a href="#" aria-label="TableFor on X (formerly Twitter)">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13.7 10.4 20.4 3h-1.6l-5.8 6.4L8.4 3H3l7 9.7L3.3 21h1.6l6.1-6.8L15.9 21H21l-7.3-10.6ZM11.5 13.1l-.7-1L5.2 4.2h2.4l4.5 6.3.7 1 5.9 8.3h-2.4l-4.8-6.7Z"/></svg>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-bottom">
+    <p>&copy; 2026 TableFor Technologies Inc. All rights reserved.</p>
+    <div class="footer-legal">
+      <a href="#">Privacy Policy</a>
+      <a href="#">Terms of Service</a>
+    </div>
+  </div>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
