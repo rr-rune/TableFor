@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TableFor</title>
+<meta name="description" content="Browse every TableFor restaurant in Angeles City and Clark. Filter by cuisine, price, discount, rating and availability, then book a confirmed table.">
+<link rel="icon" href="data:,">
+<script>document.documentElement.classList.add('js');</script>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css?v=20260928e">
+</head>
+<body data-page="explore">
+
+<a class="skip-link" href="#results">Skip to results</a>
+
+<!-- ============ HEADER ============ -->
+<header class="site-header" id="siteHeader">
+  <div class="header-inner">
+    <a href="index.html" class="logo" aria-label="TableFor home">TableFor<span class="logo-dot">.</span></a>
+
+    <nav class="main-nav" id="mainNav" aria-label="Primary">
+      <ul class="nav-list">
+        <li><a href="index.html" class="nav-link">Home</a></li>
+        <li><a href="explore.html" class="nav-link is-active" aria-current="page">Explore</a></li>
+        <li><a href="partner.html" class="nav-link">Partner</a></li>
+        <li><a href="blog.html" class="nav-link">Blog</a></li>
+        <li><a href="about.html" class="nav-link">About Us</a></li>
+      </ul>
+    </nav>
+
+    <div class="header-actions">
+      <a href="#" class="btn btn-dark btn-sm">Sign In</a>
+      <button class="nav-toggle" id="navToggle" aria-label="Open menu" aria-expanded="false" aria-controls="mainNav">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- ============ FILTERS + RESULTS ============ -->
+  <div class="x-layout">
+    <h1 class="visually-hidden">Explore restaurants</h1>
+
+    <!-- Upcoming bookings made on this device (filled by explore.js) -->
+    <div class="x-bookings" id="upcomingBookings" hidden></div>
+
+    <div class="x-sheet-backdrop" id="sheetBackdrop" hidden></div>
+
+    <aside class="x-filters" id="filterPanel" aria-label="Filters">
+      <div class="x-sheet-head">
+        <h2>Filters</h2>
+        <button type="button" class="x-sheet-close" id="closeFilters" aria-label="Close filters">&times;</button>
+      </div>
+      <div class="x-filters-head">
+        <h2>Filters</h2>
+        <button type="button" class="x-text-btn" id="sidebarClear">Clear all</button>
+      </div>
+      <div class="x-filter-body" id="filterBody"></div>
+      <div class="x-sheet-foot">
+        <button type="button" class="btn btn-outline-dark btn-sm" id="sheetClear">Clear all</button>
+        <button type="button" class="btn btn-amber btn-sm" id="sheetShowResults">Show results</button>
+      </div>
+    </aside>
+
+    <section class="x-results" id="results" aria-labelledby="resultsHeading" tabindex="-1">
+      <div class="x-toolbar">
+        <div class="x-toolbar-text">
+          <h2 class="x-count" id="resultsHeading" aria-live="polite"></h2>
+          <p class="x-context" id="resultsContext"></p>
+        </div>
+        <div class="x-toolbar-actions">
+          <div class="x-keyword">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg>
+            <label for="keywordInput" class="visually-hidden">Filter by restaurant name or cuisine</label>
+            <input type="search" id="keywordInput" placeholder="Name or cuisine" autocomplete="off" enterkeyhint="search">
+            <button type="button" class="x-keyword-clear" id="keywordClear" aria-label="Clear name or cuisine" hidden>&times;</button>
+          </div>
+          <button type="button" class="x-filter-btn" id="openFilters" aria-controls="filterPanel" aria-expanded="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+            Filters <span class="x-filter-badge" id="filterBadge" hidden></span>
+          </button>
+          <label class="x-sort">
+            <span>Sort</span>
+            <select id="sortSelect"></select>
+          </label>
+        </div>
+      </div>
+
+      <div class="x-pills" id="activePills" hidden></div>
+      <div class="x-grid" id="resultsList"></div>
+      <div class="x-empty" id="emptyState" role="status" hidden></div>
+      <div class="x-toast" id="toast" role="status" aria-live="polite"></div>
+    </section>
+  </div>
+
+  <!-- ============ BOOKING MODAL ============ -->
+  <div class="modal-overlay" id="restaurantModalOverlay" hidden>
+    <div class="restaurant-modal" role="dialog" aria-modal="true" aria-labelledby="modalRestName">
+      <button type="button" class="modal-close" id="modalClose" aria-label="Close">&times;</button>
+
+      <div class="modal-photo" id="modalPhoto"></div>
+
+      <div class="modal-body">
+        <form class="modal-view modal-booking-view" id="modalBookingView">
+          <div class="modal-summary">
+            <div class="restaurant-meta-row">
+              <span class="tag" id="modalCuisine"></span>
+              <span class="price" id="modalPrice"></span>
+            </div>
+            <h3 id="modalRestName"></h3>
+            <p class="restaurant-loc">
+              <span class="pin-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.1-7-11.5A7 7 0 0 1 19 9.5C19 14.9 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.2"/></svg></span>
+              <span id="modalLoc"></span>
+            </p>
+            <p class="rating"><span class="stars" aria-hidden="true">&#9733;</span> <span id="modalRating"></span> <span class="reviews" id="modalReviews"></span></p>
+            <p class="modal-desc" id="modalDesc"></p>
+          </div>
+
+          <div class="modal-grid">
+            <div class="modal-field">
+              <span id="modalDateLabel">Date</span>
+              <input type="hidden" id="modalDate" name="date">
+              <button type="button" class="modal-date-btn" id="modalDateBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="modalCal" aria-labelledby="modalDateLabel modalDateText">
+                <span id="modalDateText"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M8 3v4M16 3v4M3.5 10h17"/></svg>
+              </button>
+            </div>
+            <div class="modal-field">
+              <span id="modalTimeLabel">Time</span>
+              <input type="hidden" id="modalTime" name="time">
+              <button type="button" class="modal-date-btn" id="modalTimeBtn" aria-haspopup="listbox" aria-expanded="false" aria-controls="modalTimePanel" aria-labelledby="modalTimeLabel modalTimeText">
+                <span id="modalTimeText"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="modal-cal modal-time-panel" id="modalTimePanel" hidden>
+            <div class="time-head">
+              <span id="modalTimeHead">Available times</span>
+              <span class="time-note" id="modalTimeNote"></span>
+            </div>
+            <div class="time-grid" id="modalTimeGrid" role="listbox" aria-labelledby="modalTimeHead"></div>
+          </div>
+          <div class="modal-cal" id="modalCal" role="dialog" aria-label="Choose a date" hidden>
+            <div class="date-quick" id="modalCalQuick" role="group" aria-label="Quick dates"></div>
+            <div class="date-popover-header">
+              <button type="button" class="cal-nav" id="modalCalPrev" aria-label="Previous month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button>
+              <span class="cal-month-label" id="modalCalMonth" aria-live="polite"></span>
+              <button type="button" class="cal-nav" id="modalCalNext" aria-label="Next month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+            </div>
+            <div class="cal-weekdays" aria-hidden="true">
+              <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+            </div>
+            <div class="cal-grid" id="modalCalGrid" role="group" aria-label="Calendar"></div>
+            <p class="cal-legend">Greyed-out dates are closed or fully booked.</p>
+          </div>
+          <div class="modal-field">
+            <label for="modalBookingGuests">Party size <em id="modalPartyRange"></em></label>
+            <div class="party-input">
+              <input type="text" id="modalBookingGuests" name="partySize" inputmode="numeric" autocomplete="off" placeholder="e.g. 2" required>
+              <div class="party-steps">
+                <button type="button" id="partyUp" aria-label="Add a guest"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg></button>
+                <button type="button" id="partyDown" aria-label="Remove a guest"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+              </div>
+            </div>
+          </div>
+          <p class="modal-note" id="modalAvailability" role="status" hidden></p>
+          <div class="modal-extra" id="modalTableBlock" hidden>
+            <div class="modal-extra-head">
+              <div>
+                <span class="modal-extra-label">Table <em>(optional)</em></span>
+                <p class="modal-extra-value" id="modalTableValue">Any available table</p>
+              </div>
+              <button type="button" class="x-text-btn" id="modalTableToggle" aria-expanded="false" aria-controls="modalTablePanel">Choose on map</button>
+            </div>
+            <div class="table-panel" id="modalTablePanel" hidden>
+              <div class="floor" id="modalFloor" role="group" aria-label="Floor plan"></div>
+              <ul class="floor-legend">
+                <li><span class="lg lg-free"></span>Available</li>
+                <li><span class="lg lg-taken"></span>Taken</li>
+                <li><span class="lg lg-nofit"></span>Not for your group size</li>
+                <li><span class="lg lg-sel"></span>Your pick</li>
+              </ul>
+            </div>
+          </div>
+          <div class="modal-extra" id="modalPreorderBlock" hidden>
+            <div class="modal-extra-head">
+              <div>
+                <span class="modal-extra-label">Pre-order <em>(optional)</em></span>
+                <p class="modal-extra-value" id="modalPreorderValue">No dishes yet</p>
+              </div>
+              <button type="button" class="x-text-btn" id="modalPreorderEdit">Add from menu</button>
+            </div>
+          </div>
+
+
+          <label class="modal-field">
+            <span>Full name</span>
+            <input type="text" id="modalBookingName2" name="fullName" placeholder="Juan Dela Cruz" autocomplete="name" required minlength="2">
+          </label>
+          <label class="modal-field">
+            <span>Mobile number</span>
+            <input type="tel" id="modalBookingPhone" name="mobile" placeholder="0917 123 4567" autocomplete="tel" inputmode="tel" required pattern="(\+63|0)9\d{2}\s?\d{3}\s?\d{4}" title="Use a PH mobile number, e.g. 0917 123 4567">
+          </label>
+          <div class="modal-grid">
+            <label class="modal-field">
+              <span>Occasion <em>(optional)</em></span>
+              <select id="modalOccasion" name="occasion">
+                <option value="">None</option>
+                <optgroup label="Celebrations">
+                  <option>Birthday</option>
+                  <option>Anniversary</option>
+                  <option>Engagement or proposal</option>
+                  <option>Graduation</option>
+                  <option>Promotion</option>
+                  <option>Baby shower</option>
+                  <option>Bridal shower</option>
+                  <option>Despedida (farewell)</option>
+                  <option>Welcome home</option>
+                </optgroup>
+                <optgroup label="Get-togethers">
+                  <option>Date night</option>
+                  <option>Family gathering</option>
+                  <option>Reunion</option>
+                  <option>Barkada night out</option>
+                  <option>Holiday celebration</option>
+                </optgroup>
+                <optgroup label="Work">
+                  <option>Business meal</option>
+                  <option>Team lunch or dinner</option>
+                  <option>Client meeting</option>
+                </optgroup>
+                <option>Other</option>
+              </select>
+            </label>
+            <label class="modal-field">
+              <span>Requests <em>(optional)</em></span>
+              <input type="text" id="modalNotes" name="notes" maxlength="120" placeholder="Allergies, high chair…">
+            </label>
+          </div>
+
+          <div class="modal-voucher">
+            <label class="modal-field" for="modalVoucher">
+              <span>Voucher code <em>(optional)</em></span>
+            </label>
+            <div class="voucher-row">
+              <input type="text" id="modalVoucher" name="voucher" placeholder="e.g. PASTA10" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="20" aria-describedby="voucherMsg">
+              <button type="button" class="btn btn-outline-dark btn-sm" id="modalVoucherApply">Apply</button>
+            </div>
+            <div class="voucher-suggest" id="voucherSuggest" hidden></div>
+            <p class="voucher-msg" id="voucherMsg" role="status"></p>
+          </div>
+
+          <p class="modal-fee">₱100 booking fee, credited back to your bill.</p>
+          <p class="modal-warning" id="modalWarning" role="alert" hidden></p>
+          <button type="submit" class="btn btn-amber modal-confirm-btn">Confirm Reservation</button>
+          <p class="modal-booking-note">Free cancellation up to 2 hours before your booking.</p>
+        </form>
+
+        <div class="modal-view modal-menu-view" id="modalMenuView" hidden>
+          <div class="menu-head">
+            <p class="eyebrow"><span class="dot"></span>Menu</p>
+            <h3 id="modalMenuName"></h3>
+            <p class="menu-note" id="modalMenuNote"></p>
+          </div>
+          <div class="menu-list" id="modalMenuList"></div>
+          <div class="menu-foot">
+            <p class="menu-total" id="modalMenuTotal" aria-live="polite"></p>
+            <button type="button" class="btn btn-amber" id="modalMenuDone">Continue to booking</button>
+          </div>
+        </div>
+
+        <div class="modal-view modal-confirm-view" id="modalConfirmView" hidden>
+          <div class="confirm-check" aria-hidden="true">&#10003;</div>
+          <h3 id="modalConfirmTitle">Table reserved</h3>
+          <p id="modalConfirmMsg">Your table at <strong id="modalConfirmName"></strong> is confirmed.</p>
+          <dl class="confirm-details">
+            <div><dt>When</dt><dd id="modalConfirmWhen"></dd></div>
+            <div><dt>Party</dt><dd id="modalConfirmParty"></dd></div>
+            <div><dt>Booking ref</dt><dd id="modalConfirmRef"></dd></div>
+            <div id="modalConfirmVoucherRow" hidden><dt>Voucher</dt><dd id="modalConfirmVoucher"></dd></div>
+            <div id="modalConfirmTableRow" hidden><dt>Table</dt><dd id="modalConfirmTable"></dd></div>
+            <div id="modalConfirmPreorderRow" hidden><dt>Pre-order</dt><dd id="modalConfirmPreorder"></dd></div>
+            <div id="modalConfirmOccasionRow" hidden><dt>Occasion</dt><dd id="modalConfirmOccasion"></dd></div>
+          </dl>
+          <div class="confirm-actions">
+            <button type="button" class="btn btn-outline-dark btn-sm" id="modalCalendarBtn">Add to calendar</button>
+            <a class="btn btn-outline-dark btn-sm" id="modalDirections" href="#" target="_blank" rel="noopener">Get directions</a>
+          </div>
+          <button type="button" class="btn btn-dark" id="modalDoneBtn">Done</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ============ FOOTER ============ -->
+<footer class="site-footer">
+  <div class="footer-top">
+    <div class="footer-brand">
+      <p class="logo footer-logo">TableFor<span class="logo-dot">.</span></p>
+      <p>Transforming restaurant discovery and table reservations with seamless curation and real-time validation. Your premium culinary companion.</p>
+    </div>
+
+    <nav class="footer-col" aria-label="Discover">
+      <h3>Discover</h3>
+      <ul>
+        <li><a href="explore.html">All Restaurants</a></li>
+        <li><a href="explore.html?sort=trending">Most Booked</a></li>
+        <li><a href="explore.html?sort=rating">Top Rated</a></li>
+        <li><a href="index.html#vouchers">Vouchers</a></li>
+        <li><a href="blog.html">Blog</a></li>
+      </ul>
+    </nav>
+
+    <nav class="footer-col" aria-label="Hosts">
+      <h3>Hosts</h3>
+      <ul>
+        <li><a href="partner.html#portal">Partner Portal</a></li>
+        <li><a href="partner.html#pricing">Pricing Plans</a></li>
+        <li><a href="partner.html#stories">Success Stories</a></li>
+        <li><a href="partner.html#apply">Apply to Partner</a></li>
+      </ul>
+    </nav>
+
+    <div class="footer-col">
+      <h3>Culinary Support</h3>
+      <ul>
+        <li><a href="mailto:business@tablefor.com">business@tablefor.com</a></li>
+        <li><a href="tel:+639954638710">+63 995 463 8710</a></li>
+      </ul>
+      <div class="social-row">
+        <a href="#" aria-label="TableFor on Instagram">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.2" cy="6.8" r="1.1" fill="currentColor" stroke="none"/></svg>
+        </a>
+        <a href="#" aria-label="TableFor on Facebook">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+        </a>
+        <a href="#" aria-label="TableFor on X (formerly Twitter)">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13.7 10.4 20.4 3h-1.6l-5.8 6.4L8.4 3H3l7 9.7L3.3 21h1.6l6.1-6.8L15.9 21H21l-7.3-10.6ZM11.5 13.1l-.7-1L5.2 4.2h2.4l4.5 6.3.7 1 5.9 8.3h-2.4l-4.8-6.7Z"/></svg>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-bottom">
+    <p>&copy; 2026 TableFor Technologies Inc. All rights reserved.</p>
+    <div class="footer-legal">
+      <a href="#">Privacy Policy</a>
+      <a href="#">Terms of Service</a>
+    </div>
+  </div>
+</footer>
+
+<script src="restaurants.js?v=20260928e"></script>
+<script src="store.js?v=20260928e"></script>
+<script src="script.js?v=20260928e"></script>
+<script src="explore.js?v=20260928e"></script>
+</body>
+</html>
