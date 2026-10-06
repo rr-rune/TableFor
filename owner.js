@@ -18,6 +18,8 @@
     // Signed-in owners from before restaurants were linked to accounts: ask them to sign in again
     if (session && session.role === 'owner') {
       document.querySelector('.op-locked-card p:not(.eyebrow)').textContent = 'Please sign in again and choose the restaurant you manage.';
+    } else if (session && session.role === 'diner') {
+      document.querySelector('.op-locked-card p:not(.eyebrow)').textContent = `You're signed in as a diner (${session.id}). Only one account can be signed in at a time, so sign out first to use the Partner Portal.`;
     }
     return;
   }
@@ -153,7 +155,7 @@
     const today = S.todayIso();
     const todays = resOn(today);
     const active = todays.filter((x) => S.ACTIVE.includes(x.status));
-    const covers = active.reduce((n, x) => n + x.guests, 0);
+    const covers = active.reduce((n, x) => n + x.guests, 0) + todays.filter((x) => x.status === 'completed').reduce((n, x) => n + x.guests, 0);
     const pendingAll = allRes().filter((x) => x.status === 'pending' && startMs(x) > Date.now());
     const seatedNow = todays.filter((x) => x.status === 'seated').length;
     const needsCheck = todays.filter((x) => x.status === 'confirmed' && startMs(x) + 15 * 60000 < Date.now());
@@ -184,7 +186,7 @@
 
       <div class="op-kpis">
         <div class="op-kpi"><span>Reservations today</span><strong>${active.length + todays.filter((x) => x.status === 'completed').length}</strong></div>
-        <div class="op-kpi"><span>Guests expected</span><strong>${covers}</strong></div>
+        <div class="op-kpi"><span>Guests today</span><strong>${covers}</strong></div>
         <div class="op-kpi"><span>Seated now</span><strong>${seatedNow}</strong></div>
         <div class="op-kpi"><span>Waiting for approval</span><strong>${pendingAll.length}</strong></div>
       </div>
@@ -737,7 +739,7 @@
       <p class="op-sub">What diners see on your card and the times they can book.</p></div></header>
       <form class="op-panel op-form" id="opProfile" novalidate>
         <label class="modal-field"><span>Short description <em>(shown on your card, up to 200 characters)</em></span>
-          <textarea name="desc" maxlength="200" rows="3">${esc(R.desc)}</textarea></label>
+          <textarea name="desc" maxlength="200" rows="4">${esc(R.desc)}</textarea></label>
         <label class="modal-field"><span>Phone number for the Call button</span>
           <input type="tel" name="phone" value="${esc(R.phone || '')}" placeholder="0917 123 4567" maxlength="20"></label>
         <div class="modal-grid">

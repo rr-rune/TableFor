@@ -5,6 +5,30 @@
 (function () {
   'use strict';
 
+  // Restaurant photos: use the local file in images/; if it isn't there yet, fall back to the
+  // restaurant's published photo (photoWeb), and only then to the lettered placeholder.
+  const PHOTO_BACKUP = new Map((window.TABLEFOR_RESTAURANTS || []).filter((r) => r.photo && r.photoWeb).map((r) => [r.photo, r.photoWeb]));
+  window.addEventListener('error', (e) => {
+    const img = e.target;
+    if (!(img instanceof HTMLImageElement) || img.dataset.triedWeb) return;
+    const local = img.getAttribute('src');
+    const web = PHOTO_BACKUP.get(local);
+    if (!web) return;
+    img.dataset.triedWeb = '1';
+    e.stopImmediatePropagation(); // keep the placeholder handlers for if the backup fails too
+    img.referrerPolicy = 'no-referrer';
+    img.src = web;
+  }, true);
+  // Same idea for photos shown as a CSS background (the booking window header)
+  function setPhotoBackground(el, r) {
+    el.style.backgroundImage = r && r.photo ? `url('${r.photo}')` : '';
+    if (!r || !r.photo || !r.photoWeb) return;
+    const probe = new Image();
+    probe.onerror = () => { if (el.dataset.photoFor === r.id) el.style.backgroundImage = `url('${r.photoWeb}')`; };
+    el.dataset.photoFor = r.id;
+    probe.src = r.photo;
+  }
+
   // Which page we're on (set on <body data-page="…">) and any search passed in the URL
   const PAGE = document.body.dataset.page || 'home';
   const initParams = new URLSearchParams(window.location.search);
@@ -73,7 +97,7 @@
     if (e.key === 'Escape') closeNav();
   });
   window.addEventListener('resize', () => {
-    if (window.innerWidth >= 1120) closeNav();
+    if (window.innerWidth >= 1024) closeNav();
   });
 
   /* ---------- Search bar elements ----------
@@ -1668,7 +1692,7 @@
     modalRestaurant = r;
     modalReturnFocus = returnFocusEl;
 
-    modalPhoto.style.backgroundImage = r.photo ? `url('${r.photo}')` : '';
+    setPhotoBackground(modalPhoto, r);
     byId('modalCuisine').textContent = r.cuisine;
     byId('modalPrice').textContent = '₱'.repeat(r.price);
     byId('modalRestName').textContent = r.name;
@@ -1810,9 +1834,8 @@
   });
 
   // "Add to calendar": a standard .ics file that phone and desktop calendars open
-  modalCalendarBtn.addEventListener('click', () => {
-    if (!lastBooking) return;
-    const b = lastBooking;
+  modalCalendarBtn.addEventListener('click', () => { if (lastBooking) downloadIcs(lastBooking); });
+  function downloadIcs(b) {
     const start = bookingStart(b);
     const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
     const stamp = (d) => `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}T${pad2(d.getHours())}${pad2(d.getMinutes())}00`;
@@ -1834,7 +1857,7 @@
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-  });
+  }
 
   modalClose.addEventListener('click', closeRestaurantModal);
   modalDoneBtn.addEventListener('click', closeRestaurantModal);
@@ -1911,12 +1934,33 @@
   function getSession() {
     try { return JSON.parse(localStorage.getItem(SESSION_KEY)); } catch { return null; }
   }
+  const readSessionRaw = () => { try { return localStorage.getItem(SESSION_KEY); } catch { return null; } };
+  let shownSession = readSessionRaw(); // the account this page is currently showing
   function setSession(s) {
     try { localStorage.setItem(SESSION_KEY, JSON.stringify(s)); } catch { /* storage unavailable */ }
+    shownSession = readSessionRaw();
   }
   function clearSession() {
     try { localStorage.removeItem(SESSION_KEY); } catch { /* storage unavailable */ }
+    shownSession = readSessionRaw();
   }
+  // Signing in or out on another page or tab updates this one too. Reloading keeps
+  // everything (header, bookings, the Partner Portal) showing the same account.
+  function syncSession() {
+    if (readSessionRaw() !== shownSession) window.location.reload();
+  }
+  window.addEventListener('storage', (e) => { if (e.key === SESSION_KEY || e.key === null) syncSession(); });
+  // Pages restored by the Back/Forward buttons come from the browser's cache, so check them again
+  let storageAtHide = '';
+  const storageSnapshot = () => {
+    try { return Object.keys(localStorage).filter((k) => k.startsWith('tablefor_')).sort().map((k) => k + localStorage.getItem(k)).join('|'); } catch { return ''; }
+  };
+  window.addEventListener('pagehide', () => { storageAtHide = storageSnapshot(); });
+  window.addEventListener('pageshow', (e) => {
+    if (!e.persisted) return;
+    if (readSessionRaw() !== shownSession || storageSnapshot() !== storageAtHide) window.location.reload();
+  });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) syncSession(); });
   function initialsFor(s) {
     const source = s.name || (s.method === 'email' ? s.id.split('@')[0] : '');
     const parts = source.replace(/[^\p{L}\s._-]/gu, ' ').split(/[\s._-]+/).filter(Boolean);
@@ -1968,6 +2012,14 @@
         </div>
       </form>
 
+      <div class="auth-view" id="authSwitch" hidden>
+        <p class="eyebrow"><span class="dot"></span>Already signed in</p>
+        <h2 id="authSwitchTitle">You're already signed in</h2>
+        <p class="auth-reason" id="authSwitchMsg"></p>
+        <button type="button" class="btn btn-dark auth-submit" data-auth="switch">Sign out and continue</button>
+        <button type="button" class="btn btn-outline-dark auth-submit auth-stay" data-auth="close">Stay signed in</button>
+      </div>
+
       <form class="auth-view" id="authOwner" novalidate hidden>
         <p class="eyebrow"><span class="dot"></span>Partner Portal</p>
         <h2>Restaurant owner sign in</h2>
@@ -1998,6 +2050,8 @@
   const authDialog = authOverlay.querySelector('.auth-dialog');
   const dinerForm = authOverlay.querySelector('#authDiner');
   const ownerForm = authOverlay.querySelector('#authOwner');
+  const switchView = authOverlay.querySelector('#authSwitch');
+  let switchTarget = 'diner';     // which sign-in form to show after signing out
   let authMethod = 'email';
   let authPending = null;       // what to do after a successful sign-in (e.g. open the booking form)
   let authReturnFocus = null;
@@ -2019,6 +2073,12 @@
   function showAuthView(view) {
     dinerForm.hidden = view !== 'diner';
     ownerForm.hidden = view !== 'owner';
+    switchView.hidden = view !== 'switch';
+    authDialog.setAttribute('aria-labelledby', view === 'switch' ? 'authSwitchTitle' : 'authTitle');
+    if (view === 'switch') {
+      requestAnimationFrame(() => switchView.querySelector('[data-auth="close"]').focus());
+      return;
+    }
     const form = view === 'diner' ? dinerForm : ownerForm;
     showAuthError(form, '');
     requestAnimationFrame(() => {
@@ -2035,6 +2095,18 @@
     authOverlay.hidden = false;
     requestAnimationFrame(() => authOverlay.classList.add('is-open'));
     document.documentElement.classList.add('auth-open');
+    // Only one account can be signed in at a time: offer to sign out first
+    const current = getSession();
+    if (current) {
+      switchTarget = view;
+      const who = current.role === 'owner' ? 'a restaurant owner' : 'a diner';
+      const want = view === 'owner' ? 'a restaurant owner' : 'a diner';
+      authOverlay.querySelector('#authSwitchMsg').textContent = current.role === view
+        ? `You're signed in as ${current.id}. Sign out first to use a different account.`
+        : `You're signed in as ${who} (${current.id}). Sign out first to sign in as ${want}.`;
+      showAuthView('switch');
+      return;
+    }
     showAuthView(view);
   }
   function closeAuth(keepPending) {
@@ -2054,6 +2126,18 @@
     else if (btn.dataset.auth === 'close') closeAuth();
     else if (btn.dataset.auth === 'owner') showAuthView('owner');
     else if (btn.dataset.auth === 'diner') showAuthView('diner');
+    else if (btn.dataset.auth === 'switch') {
+      const wasOwnerPage = document.body.dataset.page === 'owner' && (getSession() || {}).role === 'owner';
+      clearSession();
+      renderAccount();
+      if (wasOwnerPage && switchTarget !== 'owner') { (window.TableForGo || ((u) => { window.location.href = u; }))('index.html'); return; }
+      const lockedMsg = document.querySelector('.op-locked-card p:not(.eyebrow)');
+      if (lockedMsg) lockedMsg.textContent = "Sign in with your restaurant's business email to manage bookings, menus and tables.";
+      authOverlay.querySelector('#authReason').textContent = switchTarget === 'diner' && authPending
+        ? 'Sign in with your diner account to book this table.'
+        : 'Sign in to book tables, keep your vouchers and see your bookings.';
+      showAuthView(switchTarget);
+    }
   });
   authOverlay.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { e.stopPropagation(); closeAuth(); return; }
@@ -2115,7 +2199,7 @@
     if (!EMAIL_RE.test(id)) return showAuthError(ownerForm, 'Enter a valid business email, like owner@restaurant.ph.', f);
     if (pwd.value.length < MIN_PASSWORD) return showAuthError(ownerForm, `Your password needs at least ${MIN_PASSWORD} characters.`, pwd);
     setSession({ role: 'owner', method: 'email', id, name: '', restaurantId: rest.value, since: Date.now() });
-    window.location.href = 'owner.html';
+    (window.TableForGo || ((u) => { window.location.href = u; }))('owner.html');
   });
 
   /* -- Header: "Sign In" button, or a round profile icon once signed in -- */
@@ -2143,7 +2227,7 @@
         <p class="account-who"><strong>${escText(s.name || s.id)}</strong><span>${s.role === 'owner' && RESTAURANTS_BY_ID.get(s.restaurantId) ? escText(RESTAURANTS_BY_ID.get(s.restaurantId).name) : roleLabel}${s.name ? ` · ${escText(s.id)}` : ''}</span></p>
         ${s.role === 'owner'
           ? '<a href="owner.html" class="account-item">Partner Portal</a>'
-          : '<a href="explore.html#upcomingBookings" class="account-item">My bookings</a><a href="index.html#vouchers" class="account-item">My vouchers</a>'}
+          : '<button type="button" class="account-item" data-account="bookings">My bookings</button><button type="button" class="account-item" data-account="vouchers">My vouchers</button>'}
         <button type="button" class="account-item account-signout" data-account="signout">Sign out</button>
       </div>`;
   }
@@ -2167,12 +2251,18 @@
       setAccountMenu(menu.hidden);
       return;
     }
+    const panelBtn = e.target.closest('[data-account="bookings"], [data-account="vouchers"]');
+    if (panelBtn) {
+      setAccountMenu(false);
+      openAccountPanel(panelBtn.dataset.account);
+      return;
+    }
     if (e.target.closest('[data-account="signout"]')) {
       const wasOwner = (getSession() || {}).role === 'owner';
       clearSession();
       renderAccount();
       showToast('You have signed out.');
-      if (wasOwner || document.body.dataset.page === 'owner') window.location.href = 'index.html';
+      if (wasOwner || document.body.dataset.page === 'owner') (window.TableForGo || ((u) => { window.location.href = u; }))('index.html');
     }
   });
   document.addEventListener('click', (e) => { if (!accountWrap.contains(e.target)) setAccountMenu(false); });
@@ -2180,6 +2270,414 @@
     if (e.key === 'Escape') { setAccountMenu(false); accountWrap.querySelector('.account-btn').focus(); }
   });
   renderAccount();
+
+  /* -- "My bookings" and "My vouchers": one scrollable panel with both sections -- */
+  const acctOverlay = document.createElement('div');
+  acctOverlay.className = 'auth-overlay acct-overlay';
+  acctOverlay.hidden = true;
+  acctOverlay.innerHTML = `
+    <div class="acct-dialog" role="dialog" aria-modal="true" aria-labelledby="acctTitle">
+     <div class="acct-pages">
+     <div class="acct-page acct-page-list">
+      <header class="acct-head">
+        <div class="acct-head-row">
+          <div>
+            <p class="eyebrow"><span class="dot"></span>Your account</p>
+            <h2 id="acctTitle">Bookings and vouchers</h2>
+          </div>
+          <button type="button" class="auth-close" data-acct="close" aria-label="Close">${CLOSE_SVG}</button>
+        </div>
+        <div class="acct-tabs" role="group" aria-label="Jump to">
+          <button type="button" class="acct-tab" data-acct-tab="bookings" aria-controls="acctBookings">My bookings <span data-count="bookings"></span></button>
+          <button type="button" class="acct-tab" data-acct-tab="vouchers" aria-controls="acctVouchers">My vouchers <span data-count="vouchers"></span></button>
+          <span class="acct-tab-bar" aria-hidden="true"></span>
+        </div>
+      </header>
+      <div class="acct-body" tabindex="-1">
+        <section class="acct-section" id="acctBookings" aria-labelledby="acctBookingsTitle">
+          <h3 id="acctBookingsTitle">My bookings</h3>
+          <div data-acct-list="bookings"></div>
+        </section>
+        <section class="acct-section" id="acctVouchers" aria-labelledby="acctVouchersTitle">
+          <h3 id="acctVouchersTitle">My vouchers</h3>
+          <div data-acct-list="vouchers"></div>
+        </section>
+      </div>
+     </div>
+     <div class="acct-page acct-page-detail" inert>
+      <header class="acct-detail-head">
+        <button type="button" class="acct-back" data-acct="back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg>My bookings</button>
+        <h2 id="acctDetailTitle" class="visually-hidden">Booking details</h2>
+        <button type="button" class="auth-close" data-acct="close" aria-label="Close">${CLOSE_SVG}</button>
+      </header>
+      <div class="acct-detail-body" tabindex="-1"></div>
+     </div>
+     </div>
+    </div>`;
+  document.body.appendChild(acctOverlay);
+  const acctDialog = acctOverlay.querySelector('.acct-dialog');
+  const acctBody = acctOverlay.querySelector('.acct-body');
+  let acctReturnFocus = null;
+  let acctConfirmRef = null;
+  const guestsLabel = (n) => (n === 1 ? '1 guest' : `${n} guests`);
+
+  function voucherState(v) {
+    const inUse = voucherInUse(v.code);
+    if (inUse && bookingIsPast(inUse)) return { label: `Used at ${inUse.name}`, kind: 'used' };
+    if (inUse) return { label: `On your ${inUse.name} booking, ${formatDateTime(fromISODate(inUse.date), inUse.minutes)}`, kind: 'inuse' };
+    if (toISODate(today) > v.validUntil) return { label: `Expired ${formatValidUntil(v)}`, kind: 'used' };
+    return { label: 'Ready to use', kind: 'ready' };
+  }
+
+  function renderAccountPanel() {
+    const now = Date.now();
+    const list = upcomingBookings();
+    const declined = declinedBookings();
+    const vouchers = claimedCodes().map(findVoucher).filter(Boolean);
+    acctOverlay.querySelector('[data-count="bookings"]').textContent = String(list.length + declined.length);
+    acctOverlay.querySelector('[data-count="vouchers"]').textContent = String(vouchers.length);
+
+    const bookingsBox = acctOverlay.querySelector('[data-acct-list="bookings"]');
+    bookingsBox.innerHTML = list.length || declined.length ? `<ul class="acct-list">
+      ${list.map((b) => {
+        const r = RESTAURANTS_BY_ID.get(b.id);
+        const start = bookingStart(b);
+        const late = start.getTime() - now < FREE_CANCEL_MINUTES * 60000;
+        const confirming = acctConfirmRef === b.ref;
+        const pending = bookingStatus(b) === 'pending';
+        return `<li class="acct-item${confirming ? ' is-confirming' : ''}" data-ref="${escText(b.ref)}">
+          ${r && r.photo ? `<img src="${escText(r.photo)}" alt="" class="acct-thumb" data-initial="${escText(b.name.charAt(0))}">` : `<span class="acct-thumb" aria-hidden="true">${escText(b.name.charAt(0))}</span>`}
+          <div class="acct-text">
+            <strong>${escText(b.name)}</strong>
+            <span class="x-status-chip ${pending ? 'is-pending' : 'is-confirmed'}">${pending ? 'Awaiting confirmation' : 'Confirmed'}</span>
+            <span class="acct-meta">${escText(formatDateTime(fromISODate(b.date), b.minutes))} · ${guestsLabel(b.guests)}</span>
+            <span class="acct-meta">Ref ${escText(b.ref)}${b.table ? ` · Table ${escText(b.table)}` : ''}${b.voucher ? ` · Voucher ${escText(b.voucher)}` : ''}</span>
+            ${confirming ? `<span class="acct-warn">${late ? `Less than 2 hours to go, so the ₱${BOOKING_FEE} booking fee won't be refunded.` : `Your ₱${BOOKING_FEE} booking fee will be refunded.`}</span>` : ''}
+          </div>
+          <div class="acct-actions">
+            ${confirming
+              ? `<button type="button" class="btn btn-dark btn-sm" data-acct-booking="cancel-yes">Cancel booking</button>
+                 <button type="button" class="btn btn-outline-dark btn-sm" data-acct-booking="cancel-no">Keep it</button>`
+              : `<button type="button" class="btn btn-outline-dark btn-sm acct-details-btn" data-acct-booking="details">View details</button>
+                 <button type="button" class="x-text-btn" data-acct-booking="cancel">Cancel</button>`}
+          </div>
+        </li>`;
+      }).join('')}
+      ${declined.map((b) => `<li class="acct-item is-declined" data-ref="${escText(b.ref)}">
+          <span class="acct-thumb" aria-hidden="true"></span>
+          <div class="acct-text">
+            <strong>${escText(b.name)}</strong>
+            <span class="x-status-chip is-declined">Declined by the restaurant</span>
+            <span class="acct-meta">${escText(formatDateTime(fromISODate(b.date), b.minutes))} · ${guestsLabel(b.guests)} · Ref ${escText(b.ref)}</span>
+            <span class="acct-meta">Your ₱${BOOKING_FEE} booking fee will be refunded.</span>
+          </div>
+          <div class="acct-actions"><button type="button" class="x-text-btn" data-acct-booking="dismiss">Dismiss</button></div>
+        </li>`).join('')}
+    </ul>` : `<div class="acct-empty"><p>No upcoming bookings yet.</p><a href="explore.html" class="btn btn-amber btn-sm">Find a table</a></div>`;
+
+    const vouchersBox = acctOverlay.querySelector('[data-acct-list="vouchers"]');
+    vouchersBox.innerHTML = vouchers.length ? `<ul class="acct-list">
+      ${vouchers.map((v) => {
+        const st = voucherState(v);
+        return `<li class="acct-voucher is-${st.kind}">
+          <div class="acct-voucher-stub"><strong>${escText(v.value)}</strong><span>${escText(v.unit)}</span></div>
+          <div class="acct-text">
+            <strong>${escText(v.title)}</strong>
+            <span class="acct-meta">${escText(v.cuisines ? v.cuisines.join(' · ') : 'Every restaurant')} · Valid until ${formatValidUntil(v)}</span>
+            <span class="acct-meta">${escText(v.terms)}</span>
+            <span class="acct-voucher-status">${escText(st.label)}</span>
+          </div>
+          <div class="acct-actions">
+            <span class="acct-code">${escText(v.code)}</span>
+            ${st.kind === 'ready' ? `<button type="button" class="x-text-btn" data-acct-copy="${escText(v.code)}">Copy code</button>` : ''}
+          </div>
+        </li>`;
+      }).join('')}
+    </ul>
+    <p class="acct-more"><a href="index.html#vouchers" class="link-arrow" data-acct="close-nav">Get more vouchers <span aria-hidden="true">&rarr;</span></a></p>`
+      : `<div class="acct-empty"><p>You haven't claimed any vouchers yet.</p><a href="index.html#vouchers" class="btn btn-amber btn-sm" data-acct="close-nav">Browse vouchers</a></div>`;
+  }
+
+  // Let "My vouchers" scroll right up to the top, even when the lists are short
+  function sizeAcctSections() {
+    const v = acctOverlay.querySelector('#acctVouchers');
+    v.style.minHeight = '';
+    const pad = parseFloat(getComputedStyle(acctBody).paddingBottom) || 0;
+    v.style.minHeight = `${Math.max(0, acctBody.clientHeight - pad)}px`;
+  }
+  const tabBar = acctOverlay.querySelector('.acct-tab-bar');
+  let acctTabNow = 'bookings';
+  function setAcctTab(name) {
+    acctTabNow = name;
+    acctOverlay.querySelectorAll('[data-acct-tab]').forEach((t) => {
+      const on = t.dataset.acctTab === name;
+      t.classList.toggle('is-active', on);
+      t.setAttribute('aria-current', on ? 'true' : 'false');
+      // The gold underline glides to the active tab
+      if (on) tabBar.style.transform = `translateX(${t.offsetLeft}px) scaleX(${t.offsetWidth / 100})`;
+    });
+  }
+  // Eased scrolling between the two sections (consistent in every browser)
+  let acctAnim = 0;
+  let acctAnimating = false;
+  function glideAcct(to) {
+    cancelAnimationFrame(acctAnim);
+    const from = acctBody.scrollTop;
+    const dist = to - from;
+    if (prefersReducedMotion.matches || Math.abs(dist) < 2) { acctBody.scrollTop = to; acctAnimating = false; return; }
+    const dur = Math.min(650, 320 + Math.abs(dist) * 0.35);
+    const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+    const t0 = performance.now();
+    acctAnimating = true;
+    const step = (now) => {
+      const t = Math.min(1, (now - t0) / dur);
+      acctBody.scrollTop = from + dist * ease(t);
+      if (t < 1) acctAnim = requestAnimationFrame(step);
+      else acctAnimating = false;
+    };
+    acctAnim = requestAnimationFrame(step);
+  }
+  function scrollAcctTo(name, smooth) {
+    const sec = acctOverlay.querySelector(name === 'vouchers' ? '#acctVouchers' : '#acctBookings');
+    const top = name === 'vouchers' ? sec.offsetTop - acctBody.offsetTop : 0;
+    if (smooth) glideAcct(top); else { cancelAnimationFrame(acctAnim); acctAnimating = false; acctBody.scrollTop = top; }
+    setAcctTab(name);
+    sec.classList.remove('is-arriving');
+    if (smooth) { void sec.offsetWidth; sec.classList.add('is-arriving'); }
+  }
+  // Highlight the section being read while scrolling
+  acctBody.addEventListener('scroll', () => {
+    if (acctAnimating) return;
+    const v = acctOverlay.querySelector('#acctVouchers');
+    const atEnd = acctBody.scrollTop + acctBody.clientHeight >= acctBody.scrollHeight - 4;
+    const next = atEnd || acctBody.scrollTop >= v.offsetTop - acctBody.offsetTop - 40 ? 'vouchers' : 'bookings';
+    if (next !== acctTabNow) setAcctTab(next);
+  }, { passive: true });
+
+  /* Booking details: slides in over the list */
+  const acctPages = acctOverlay.querySelector('.acct-pages');
+  const listPage = acctOverlay.querySelector('.acct-page-list');
+  const detailPage = acctOverlay.querySelector('.acct-page-detail');
+  const detailBody = acctOverlay.querySelector('.acct-detail-body');
+  let detailRef = null;
+  let detailConfirm = false;
+  const minutesToLabel = (date, mins) => formatDateTime(startOfDay(date), mins);
+
+  function renderBookingDetail() {
+    const b = getBookings().find((x) => x.ref === detailRef);
+    if (!b) { showAcctList(); return; }
+    const r = RESTAURANTS_BY_ID.get(b.id);
+    const start = bookingStart(b);
+    const freeUntil = new Date(start.getTime() - FREE_CANCEL_MINUTES * 60000);
+    const late = Date.now() > freeUntil.getTime();
+    const pending = bookingStatus(b) === 'pending';
+    const v = findVoucher(b.voucher);
+    const tbl = b.table && r && r.layout ? r.layout.tables.find((x) => x.id === b.table) : null;
+    const lines = b.preorder || [];
+    const row = (label, value) => (value ? `<div><dt>${label}</dt><dd>${value}</dd></div>` : '');
+    detailBody.innerHTML = `
+      <div class="acct-detail-hero">
+        ${r && r.photo ? `<img src="${escText(r.photo)}" alt="" data-initial="${escText(b.name.charAt(0))}">` : `<span class="acct-thumb" aria-hidden="true">${escText(b.name.charAt(0))}</span>`}
+      </div>
+      <div class="acct-detail-main">
+        <span class="x-status-chip ${pending ? 'is-pending' : 'is-confirmed'}">${pending ? 'Awaiting confirmation' : 'Confirmed'}</span>
+        <h3>${escText(b.name)}</h3>
+        <p class="acct-meta">${escText(b.place || (r ? placeLabel(r) : ''))}, Pampanga</p>
+        ${pending ? `<p class="acct-note">${escText(b.name)} confirms bookings by hand. You'll see "Confirmed" here once they accept.</p>` : ''}
+
+        <dl class="acct-dl">
+          ${row('When', escText(formatDateTime(fromISODate(b.date), b.minutes)))}
+          ${row('Party', guestsLabel(b.guests))}
+          ${row('Booking ref', `<strong>${escText(b.ref)}</strong>`)}
+          ${row('Table', tbl ? escText(tableLabel(tbl)) : (b.table ? escText(`Table ${b.table}`) : 'Any available table'))}
+          ${row('Name', escText(b.fullName || ''))}
+          ${row('Mobile', escText(b.phone || ''))}
+          ${row('Occasion', escText(b.occasion || ''))}
+          ${row('Requests', escText(b.notes || ''))}
+          ${row('Voucher', v ? `${escText(v.code)} · ${escText(v.value)} ${escText(v.unit)}` : '')}
+        </dl>
+
+        ${lines.length ? `<div class="acct-preorder">
+          <h4>Pre-order</h4>
+          <ul>${lines.map((l) => `<li><span>${l.qty} × ${escText(l.name)}</span><span>${peso(l.qty * l.price)}</span></li>`).join('')}</ul>
+          <p><span>Total, paid at the restaurant</span><strong>${peso(preorderTotal(lines))}</strong></p>
+        </div>` : ''}
+
+        <div class="acct-policy">
+          <p><strong>₱${BOOKING_FEE} booking fee</strong> comes off your food bill when you dine.</p>
+          <p>${late
+            ? `It's less than 2 hours to go, so the booking fee won't be refunded if you cancel.`
+            : `Free cancellation until <strong>${escText(minutesToLabel(freeUntil, freeUntil.getHours() * 60 + freeUntil.getMinutes()))}</strong>.`}</p>
+        </div>
+
+        <div class="acct-detail-actions">
+          ${r && r.phone ? `<a class="btn btn-outline-dark btn-sm" href="tel:${escText(r.phone)}">Call restaurant</a>` : ''}
+          ${r ? `<a class="btn btn-outline-dark btn-sm" href="${mapsUrl(r)}" target="_blank" rel="noopener">Directions<span class="visually-hidden"> (opens in a new tab)</span></a>` : ''}
+          <button type="button" class="btn btn-outline-dark btn-sm" data-acct-detail="calendar">Add to calendar</button>
+        </div>
+        <div class="acct-detail-cancel${detailConfirm ? ' is-confirming' : ''}">
+          ${detailConfirm
+            ? `<p class="acct-warn">${late ? `Less than 2 hours to go, so the ₱${BOOKING_FEE} booking fee won't be refunded.` : `Your ₱${BOOKING_FEE} booking fee will be refunded.`}</p>
+               <div><button type="button" class="btn btn-dark btn-sm" data-acct-detail="cancel-yes">Cancel booking</button>
+               <button type="button" class="btn btn-outline-dark btn-sm" data-acct-detail="cancel-no">Keep it</button></div>`
+            : '<button type="button" class="x-text-btn acct-cancel-link" data-acct-detail="cancel">Cancel this booking</button>'}
+        </div>
+      </div>`;
+    acctOverlay.querySelector('#acctDetailTitle').textContent = `Booking details: ${b.name}`;
+  }
+  function showAcctDetail(ref) {
+    detailRef = ref;
+    detailConfirm = false;
+    renderBookingDetail();
+    detailBody.scrollTop = 0;
+    acctDialog.classList.add('is-detail');
+    acctDialog.setAttribute('aria-labelledby', 'acctDetailTitle');
+    listPage.inert = true;
+    detailPage.inert = false;
+    setTimeout(() => detailPage.querySelector('.acct-back').focus({ preventScroll: true }), prefersReducedMotion.matches ? 0 : 320);
+  }
+  function showAcctList() {
+    const ref = detailRef;
+    detailRef = null;
+    acctDialog.classList.remove('is-detail');
+    acctDialog.setAttribute('aria-labelledby', 'acctTitle');
+    listPage.inert = false;
+    detailPage.inert = true;
+    setTimeout(() => {
+      const back = ref && listPage.querySelector(`[data-ref="${ref}"] [data-acct-booking="details"]`);
+      (back || listPage.querySelector('.acct-tab.is-active') || acctBody).focus({ preventScroll: true });
+    }, prefersReducedMotion.matches ? 0 : 320);
+  }
+  detailBody.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-acct-detail]');
+    if (!btn) return;
+    const what = btn.dataset.acctDetail;
+    if (what === 'calendar') { const b = getBookings().find((x) => x.ref === detailRef); if (b) downloadIcs(b); return; }
+    if (what === 'cancel') detailConfirm = true;
+    if (what === 'cancel-no') detailConfirm = false;
+    if (what === 'cancel-yes') {
+      const ref = detailRef;
+      detailConfirm = false;
+      showAcctList();
+      cancelBooking(ref);
+      showToast('Booking cancelled.');
+      return;
+    }
+    renderBookingDetail();
+    const again = detailBody.querySelector('[data-acct-detail^="cancel"]');
+    if (again) again.focus();
+  });
+
+  function openAccountPanel(section, detail) {
+    acctReturnFocus = document.activeElement && document.activeElement !== document.body ? document.activeElement : accountWrap.querySelector('.account-btn');
+    if (acctReturnFocus && acctReturnFocus.closest('.account-menu')) acctReturnFocus = accountWrap.querySelector('.account-btn');
+    acctConfirmRef = null;
+    detailRef = null;
+    acctDialog.classList.add('no-anim');
+    acctDialog.classList.remove('is-detail');
+    acctDialog.setAttribute('aria-labelledby', 'acctTitle');
+    listPage.inert = false;
+    detailPage.inert = true;
+    renderAccountPanel();
+    acctOverlay.hidden = false;
+    document.documentElement.classList.add('auth-open');
+    requestAnimationFrame(() => {
+      acctOverlay.classList.add('is-open');
+      sizeAcctSections();
+      scrollAcctTo(section, false);
+      acctOverlay.querySelector(`[data-acct-tab="${section}"]`).focus({ preventScroll: true });
+      if (detail) {
+        detailRef = detail;
+        renderBookingDetail();
+        acctDialog.classList.add('is-detail');
+        acctDialog.setAttribute('aria-labelledby', 'acctDetailTitle');
+        listPage.inert = true;
+        detailPage.inert = false;
+        detailPage.querySelector('.acct-back').focus({ preventScroll: true });
+      }
+      requestAnimationFrame(() => acctDialog.classList.remove('no-anim'));
+    });
+  }
+  function openBookingDetails(ref) { openAccountPanel('bookings', ref); }
+  function closeAccountPanel() {
+    if (acctOverlay.hidden) return;
+    acctOverlay.classList.remove('is-open');
+    document.documentElement.classList.remove('auth-open');
+    setTimeout(() => { acctOverlay.hidden = true; }, 200);
+    if (acctReturnFocus && acctReturnFocus.isConnected) acctReturnFocus.focus({ preventScroll: true });
+  }
+  acctOverlay.addEventListener('click', (e) => {
+    if (e.target === acctOverlay || e.target.closest('[data-acct="close"]')) { closeAccountPanel(); return; }
+    if (e.target.closest('[data-acct="back"]')) { showAcctList(); return; }
+    if (e.target.closest('[data-acct="close-nav"]')) {
+      // Same-page link (Home → #vouchers): close the panel so the section is visible
+      acctOverlay.classList.remove('is-open'); acctOverlay.hidden = true;
+      document.documentElement.classList.remove('auth-open');
+      return;
+    }
+    const tab = e.target.closest('[data-acct-tab]');
+    if (tab) { scrollAcctTo(tab.dataset.acctTab, true); return; }
+    const copy = e.target.closest('[data-acct-copy]');
+    if (copy) {
+      const code = copy.dataset.acctCopy;
+      const done = () => showToast(`Code ${code} copied. Paste it in the booking form.`);
+      if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(code).then(done, () => showToast(`Your code is ${code}.`));
+      else showToast(`Your code is ${code}.`);
+      return;
+    }
+    const act = e.target.closest('[data-acct-booking]');
+    if (!act) return;
+    const ref = act.closest('[data-ref]').dataset.ref;
+    const what = act.dataset.acctBooking;
+    if (what === 'details') { showAcctDetail(ref); return; }
+    if (what === 'cancel') acctConfirmRef = ref;
+    if (what === 'cancel-no') acctConfirmRef = null;
+    if (what === 'cancel-yes') { acctConfirmRef = null; cancelBooking(ref); showToast('Booking cancelled.'); return; }
+    if (what === 'dismiss') { saveBookings(getBookings().map((b) => (b.ref === ref ? { ...b, dismissed: true } : b))); return; }
+    renderAccountPanel();
+    const again = acctOverlay.querySelector(`[data-ref="${ref}"] [data-acct-booking]`);
+    if (again) again.focus();
+  });
+  acctOverlay.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      if (acctDialog.classList.contains('is-detail')) showAcctList(); else closeAccountPanel();
+      return;
+    }
+    if (e.key !== 'Tab') return;
+    const page = acctDialog.classList.contains('is-detail') ? detailPage : listPage;
+    const items = [...page.querySelectorAll('button, a[href]')].filter((el) => el.offsetParent !== null && !el.disabled);
+    if (!items.length) return;
+    const first = items[0];
+    const last = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  });
+  // A thumbnail that fails to load becomes a plain tile
+  acctOverlay.addEventListener('error', (e) => {
+    if (e.target instanceof HTMLImageElement) {
+      const tile = document.createElement('span');
+      tile.className = 'acct-thumb';
+      tile.setAttribute('aria-hidden', 'true');
+      tile.textContent = e.target.dataset.initial || '';
+      e.target.replaceWith(tile);
+    }
+  }, true);
+  // Escape still works if focus has left the panel (e.g. after a list re-render)
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || acctOverlay.hidden || acctOverlay.contains(document.activeElement)) return;
+    if (acctDialog.classList.contains('is-detail')) showAcctList(); else closeAccountPanel();
+  });
+  const refreshPanel = () => {
+    if (acctOverlay.hidden) return;
+    renderAccountPanel();
+    sizeAcctSections();
+    setAcctTab(acctTabNow);
+    if (detailRef) renderBookingDetail();
+  };
+  window.addEventListener('resize', () => { if (!acctOverlay.hidden) { sizeAcctSections(); setAcctTab(acctTabNow); } });
+  document.addEventListener('tablefor:bookingschange', refreshPanel);
+  document.addEventListener('tablefor:voucherschange', refreshPanel);
 
   // Any button with data-open-auth opens the sign-in dialog ("diner" or "owner")
   document.addEventListener('click', (e) => {
@@ -2238,7 +2736,7 @@
         document.dispatchEvent(new CustomEvent('tablefor:searchsubmit'));
         return;
       }
-      window.location.href = `explore.html?${searchToParams().toString()}`;
+      (window.TableForGo || ((u) => { window.location.href = u; }))(`explore.html?${searchToParams().toString()}`);
     });
   }
 
@@ -2319,7 +2817,7 @@
   /* ---------- Shared state for other scripts (Explore page) ---------- */
   window.TableFor = {
     getSession,
-    signOut() { clearSession(); window.location.href = 'index.html'; },
+    signOut() { clearSession(); (window.TableForGo || ((u) => { window.location.href = u; }))('index.html'); },
     openAuth,
     getSearch() {
       const sel = locSelection;
@@ -2358,6 +2856,7 @@
     bookingStatus,
     dismissBooking(ref) { saveBookings(getBookings().map((b) => (b.ref === ref ? { ...b, dismissed: true } : b))); },
     cancelBooking,
+    openBookingDetails: (ref) => openBookingDetails(ref),
     bookingStart,
     FREE_CANCEL_MINUTES,
     BOOKING_FEE,

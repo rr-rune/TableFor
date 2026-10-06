@@ -492,7 +492,8 @@
               ${confirming
                 ? `<button type="button" class="btn btn-dark btn-sm" data-booking="cancel-yes">Cancel booking</button>
                    <button type="button" class="btn btn-outline-dark btn-sm" data-booking="cancel-no">Keep it</button>`
-                : `${r ? `<a class="x-text-btn" href="${TF.mapsUrl(r)}" target="_blank" rel="noopener">Directions</a>` : ''}
+                : `<button type="button" class="x-text-btn" data-booking="details">View details</button>
+                   ${r ? `<a class="x-text-btn" href="${TF.mapsUrl(r)}" target="_blank" rel="noopener">Directions</a>` : ''}
                    <button type="button" class="x-text-btn" data-booking="cancel">Cancel</button>`}
             </div>
           </li>`;
@@ -514,6 +515,7 @@
     if (!btn) return;
     const ref = btn.closest('[data-ref]').dataset.ref;
     const act = btn.dataset.booking;
+    if (act === 'details') { TF.openBookingDetails(ref); return; }
     if (act === 'cancel') confirmingRef = ref;
     if (act === 'cancel-no') confirmingRef = null;
     if (act === 'cancel-yes') { confirmingRef = null; TF.cancelBooking(ref); return; } // re-renders via event

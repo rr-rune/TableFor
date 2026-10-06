@@ -218,7 +218,9 @@ window.TABLEFOR_VOUCHERS = [
       hours: { open: H(8), close: H(21) }, closedDays: [], minParty: 1, maxParty: 12,
       preorder: true, isNew: false, fillingFast: false, badge: null,
       desc: "Conti's first dining concept, opened in February 2026 inside one of Clark's breezy old barn houses, with comfort dishes, cakes, coffee and cocktails.",
-      photo: 'images/barn-contis.jpg', phone: '+639173031061',
+      photo: 'images/barn-contis.jpg',
+      // Backup while images/barn-contis.jpg isn't in the folder yet (run get-photos.sh once to save it locally)
+      photoWeb: 'https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEg82DMw28ilFbiWcPKeEKZvv6JyqLN6L4q6RfPZXT6ZRQ9_cAwPnn665fzkgnW1-Vn7NhGgHer1hqHEyA1-xw0zm5u5ytdkdtY__B9CDonop1sb6xvFi7IzEDEGN_mINy-4-yj5h3UsLpAjzD_pOT4kUU76gkaP2N3FXGoBWuClwP706m9hbRy33EvMptA/w1600/Barn%202.jpg', phone: '+639173031061',
     },
     {
       id: 'crabs-n-crack', name: 'Crabs N Crack', cuisine: 'Seafood', style: 'Seafood Platters', price: 2,
@@ -227,7 +229,9 @@ window.TABLEFOR_VOUCHERS = [
       hours: { open: H(10), close: H(23) }, closedDays: [], minParty: 1, maxParty: 20,
       preorder: true, isNew: false, fillingFast: false, badge: null,
       desc: 'A seafood house built for sharing, with crab and shrimp platters in chili garlic or Cajun sauce, eaten by hand boodle-style.',
-      photo: 'images/crabs-n-crack.jpg', phone: '+639176775482',
+      photo: 'images/crabs-n-crack.jpg',
+      // Backup while images/crabs-n-crack.jpg isn't in the folder yet (run get-photos.sh once to save it locally)
+      photoWeb: 'https://whereinpampanga.com/wp-content/uploads/2023/02/Crabs-N-Carck.jpg', phone: '+639176775482',
     },
     {
       id: 'amare', name: 'Amare by Chef Chris', cuisine: 'Italian', style: 'Italian-Mediterranean', price: 3,
@@ -236,7 +240,9 @@ window.TABLEFOR_VOUCHERS = [
       hours: { open: H(11), close: H(22) }, closedDays: [], minParty: 1, maxParty: 12,
       preorder: false, isNew: false, fillingFast: false, badge: null,
       desc: 'Classic Italian-Mediterranean cooking at Royce Hotel in Clark, home of the late Chef Chris Locher\'s signature rollizza and fresh pasta.',
-      photo: 'images/amare.jpg', phone: '+639054449167',
+      photo: 'images/amare.jpg',
+      // Backup while images/amare.jpg isn't in the folder yet (run get-photos.sh once to save it locally)
+      photoWeb: 'https://whereinpampanga.com/wp-content/uploads/2023/07/Amare-by-Chef-Chris3-1.jpg', phone: '+639054449167',
     },
     {
       id: 'johns-kitchen', name: "John's Kitchen", cuisine: 'Steakhouse', style: 'Unli Steak', price: 2,
@@ -245,7 +251,9 @@ window.TABLEFOR_VOUCHERS = [
       hours: { open: H(16), close: H(23) }, closedDays: [0], minParty: 1, maxParty: 12,
       preorder: false, isNew: false, fillingFast: false, badge: null,
       desc: 'An unli-steak favourite since 2010, with steaks grilled to order and an unlimited buffet of sides. Dinner only, Monday to Saturday.',
-      photo: 'images/johns-kitchen.jpg', phone: '+639336236908',
+      photo: 'images/johns-kitchen.jpg',
+      // Backup while images/johns-kitchen.jpg isn't in the folder yet (run get-photos.sh once to save it locally)
+      photoWeb: 'https://media-cdn.tripadvisor.com/media/photo-o/0f/33/43/ff/john-s-kitchen.jpg', phone: '+639336236908',
     },
     {
       id: 'cafe-retro-252', name: 'Cafe Retro 252', cuisine: 'Café', style: 'Korean-style Café', price: 2,
@@ -254,7 +262,9 @@ window.TABLEFOR_VOUCHERS = [
       hours: { open: H(9), close: H(24) }, closedDays: [], minParty: 1, maxParty: 10,
       preorder: true, isNew: false, fillingFast: false, badge: null,
       desc: 'A modern-vintage café on Friendship Highway serving croffles, bingsu, tonkatsu and pasta, with an upstairs floor and al fresco seats.',
-      photo: 'images/cafe-retro-252.jpg', phone: null,
+      photo: 'images/cafe-retro-252.jpg',
+      // Backup while images/cafe-retro-252.jpg isn't in the folder yet (run get-photos.sh once to save it locally)
+      photoWeb: 'https://media-cdn.tripadvisor.com/media/photo-m/1280/21/6e/72/7e/nice-place-retro-252.jpg', phone: null,
     },
   ];
 })();
