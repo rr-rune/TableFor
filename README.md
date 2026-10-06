@@ -93,22 +93,6 @@ Scripts load in this order on every page: `sync.js` (in the head), then `restaur
 
 ---
 
-## Photos
-
-- **The original 16 restaurants:** photos are in `images/`.
-- **Barn by Conti's, Crabs N Crack, Amare by Chef Chris, John's Kitchen and Cafe Retro 252:** these load the restaurant's published photo until a local copy is saved.
-- **Blog articles from other writers:** these use the photo published with each article. TableFor's own posts use designed covers, so no restaurant photos appear on the blog.
-
-To save these photos locally, run this once in the TableFor folder, then commit the `images/` folder:
-
-```
-bash get-photos.sh
-```
-
-If a photo can't be found, the site shows a lettered or TableFor Journal cover instead of a broken image. Photos from other sites belong to their owners and are used here for a non-commercial coursework demo, with each blog card linking back to the original article.
-
----
-
 ## Standards and accessibility
 
 - Text colours meet WCAG 2.1 AA contrast. Form fields and controls have visible outlines.
