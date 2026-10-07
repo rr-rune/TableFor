@@ -486,7 +486,7 @@
             <div class="x-booking-text">
               <strong>${esc(b.name)} ${TF.bookingStatus(b) === 'pending' ? '<span class="x-status-chip is-pending">Awaiting confirmation</span>' : '<span class="x-status-chip is-confirmed">Confirmed</span>'}</strong>
               <span>${esc(when)} · ${guestsText(b.guests)} · Ref ${esc(b.ref)}${b.voucher ? ` · ${esc(b.voucher)}` : ''}</span>
-              ${confirming ? `<span class="x-booking-warn">${late ? `Less than 2 hours to go, so the ₱${TF.BOOKING_FEE} booking fee won't be refunded.` : `Your ₱${TF.BOOKING_FEE} booking fee will be refunded.`}</span>` : ''}
+              ${confirming ? `<span class="x-booking-warn">${late ? `Less than 2 hours to go, so your ₱${TF.BOOKING_FEE} deposit goes to the restaurant.` : `Your ₱${TF.BOOKING_FEE} deposit will be refunded in full.`}</span>` : ''}
             </div>
             <div class="x-booking-actions">
               ${confirming
@@ -502,7 +502,7 @@
             <span class="x-booking-thumb" aria-hidden="true"></span>
             <div class="x-booking-text">
               <strong>${esc(b.name)} <span class="x-status-chip is-declined">Declined by the restaurant</span></strong>
-              <span>${esc(TF.whenLabel(TF.bookingStart(b), b.minutes))} · ${guestsText(b.guests)} · Ref ${esc(b.ref)}. Your ₱${TF.BOOKING_FEE} booking fee will be refunded.</span>
+              <span>${esc(TF.whenLabel(TF.bookingStart(b), b.minutes))} · ${guestsText(b.guests)} · Ref ${esc(b.ref)}. Your ₱${TF.BOOKING_FEE} deposit will be refunded in full.</span>
             </div>
             <div class="x-booking-actions">
               <button type="button" class="x-text-btn" data-booking="dismiss">Dismiss</button>

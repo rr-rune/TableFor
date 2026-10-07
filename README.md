@@ -1,10 +1,12 @@
 # TableFor
 
-A restaurant discovery and table booking website for Angeles City and Clark, Pampanga.
+A restaurant discovery and table booking website for Angeles City, Clark, Mabalacat and San Fernando, Pampanga.
 
-Diners can browse a curated list of restaurants, check which places can take their date, time and group, and book a table with a ₱100 booking fee that comes off the food bill. Restaurant owners get a Partner Portal to manage bookings, their menu, floor plan and booking rules.
+Diners can browse a curated list of restaurants, check which places can take their date, time and group, and book a table with a ₱100 table deposit that's credited in full to the bill, so booking costs nothing extra. Restaurant owners get a Partner Portal to manage bookings, their menu, floor plan and booking rules.
 
 TableFor is a front-end mock-up built for coursework at Holy Angel University. There's no server or database. Everything is plain HTML, CSS and JavaScript, and the "backend" is the browser's own storage (localStorage).
+
+**Team:** Eiwelle Magtoto, Razzle Ramirez, Sean Salta
 
 ---
 
@@ -32,7 +34,13 @@ Every page has the same header (Home, Explore, Partner, Blog, About Us) and foot
 - **My bookings and My vouchers:** open from the profile icon. One panel shows both, with tabs that glide between the sections.
   - "View details" shows the full booking: reference, table, pre-order total and when free cancellation ends.
   - From the details you can call the restaurant, get directions, add the booking to your calendar (.ics) or cancel.
-- **Cancellation:** free up to 2 hours before the booking. After that the booking fee isn't refunded.
+- **Booking policies** (shown in full on About Us → Booking policies):
+  - ₱100 table deposit, credited in full to your bill when you dine.
+  - Free cancellation, with a full deposit refund, up to 2 hours before.
+  - Late cancellations and no-shows: the deposit goes to the restaurant.
+  - Tables are held for 15 minutes past the booking time.
+  - If the restaurant declines or cancels, the deposit is refunded in full.
+  - One voucher per booking, and each voucher works once.
 - **Calls and directions:** Call buttons use each restaurant's real phone number. Directions open Google Maps.
 
 ### For restaurant owners (Partner Portal)
@@ -74,7 +82,6 @@ TableFor/
 ├── script.js         Header, search, booking window, vouchers, sign-in, account panel, toasts
 ├── explore.js        Explore filters, sorting, cards and upcoming bookings
 ├── owner.js          Partner Portal
-├── get-photos.sh     Downloads restaurant and blog photos into images/
 └── images/           Restaurant photos (images/<id>.jpg) and blog photos (images/blog/)
 ```
 

@@ -384,7 +384,7 @@
       // A second, explicit step before cancelling someone's booking
       box.hidden = false;
       box.innerHTML = `
-        <p>${act === 'decline' ? 'Decline this booking request?' : 'Cancel this confirmed booking?'} The diner is told straight away and their ₱100 booking fee is refunded.</p>
+        <p>${act === 'decline' ? 'Decline this booking request?' : 'Cancel this confirmed booking?'} The diner is told straight away and their ₱100 deposit is refunded in full.</p>
         <div class="op-actions">
           <button type="button" class="btn btn-dark btn-sm" data-act="${act}-yes">${act === 'decline' ? 'Yes, decline' : 'Yes, cancel it'}</button>
           <button type="button" class="btn btn-outline-dark btn-sm" data-act="keep">Keep it</button>
@@ -830,8 +830,10 @@
       <section class="op-panel">
         <h2>TableFor policies</h2>
         <ul class="op-policy">
-          <li><strong>₱100 booking fee</strong><span>Paid by the diner and taken off their food bill when they're seated.</span></li>
-          <li><strong>Free cancellation up to 2 hours before</strong><span>After that, the fee isn't refunded to the diner.</span></li>
+          <li><strong>₱100 table deposit</strong><span>Paid by the diner when they book and credited to their bill when they dine.</span></li>
+          <li><strong>Free cancellation up to 2 hours before</strong><span>The diner gets the full deposit back. After that, or on a no-show, the deposit is paid to you.</span></li>
+          <li><strong>15-minute grace period</strong><span>Hold the table for 15 minutes after the booking time, then you can mark the guest as a no-show.</span></li>
+          <li><strong>Your cancellations</strong><span>If you decline or cancel a booking, the diner's deposit is refunded in full.</span></li>
           <li><strong>Tables held for 90 minutes</strong><span>A table can't be booked again within 90 minutes of another booking.</span></li>
           <li><strong>Up to 20 guests per booking</strong><span>Set your own limit in Profile and hours.</span></li>
         </ul>

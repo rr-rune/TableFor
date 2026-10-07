@@ -2286,3 +2286,16 @@ textarea:not([readonly]), [contenteditable="true"] { caret-color: var(--ink); }
 .journal-cover.post-cover .journal-cover-word { font-size: clamp(1.7rem, 3.6vw, 2.6rem); }
 .journal-cover.post-cover::after { inset: 14px; border-radius: 14px; }
 @media (max-width: 559.98px) { .journal-cover.post-cover { aspect-ratio: 16 / 10; padding: 20px; } }
+
+/* Footer: the areas we cover */
+.footer-brand .footer-area { margin-top: 12px; font-size: 0.86rem; color: rgba(255, 255, 255, 0.75); }
+
+/* ---------- Booking policies (About) ---------- */
+.policy-grid { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); margin-top: 34px; }
+@media (min-width: 640px) { .policy-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1024px) { .policy-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.policy-card { background: var(--white); border: 1px solid var(--rule); border-radius: var(--radius-md); padding: 22px 24px; border-top: 3px solid var(--gold); }
+.policy-card h3 { font-size: 1.12rem; margin-bottom: 8px; }
+.policy-card p { font-size: 0.9rem; color: var(--text-muted); }
+.modal-fee a, .acct-policy a { color: var(--gold-text); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; white-space: nowrap; }
+.modal-fee a:hover, .acct-policy a:hover { color: var(--ink); }

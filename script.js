@@ -2352,7 +2352,7 @@
             <span class="x-status-chip ${pending ? 'is-pending' : 'is-confirmed'}">${pending ? 'Awaiting confirmation' : 'Confirmed'}</span>
             <span class="acct-meta">${escText(formatDateTime(fromISODate(b.date), b.minutes))} · ${guestsLabel(b.guests)}</span>
             <span class="acct-meta">Ref ${escText(b.ref)}${b.table ? ` · Table ${escText(b.table)}` : ''}${b.voucher ? ` · Voucher ${escText(b.voucher)}` : ''}</span>
-            ${confirming ? `<span class="acct-warn">${late ? `Less than 2 hours to go, so the ₱${BOOKING_FEE} booking fee won't be refunded.` : `Your ₱${BOOKING_FEE} booking fee will be refunded.`}</span>` : ''}
+            ${confirming ? `<span class="acct-warn">${late ? `Less than 2 hours to go, so your ₱${BOOKING_FEE} deposit goes to the restaurant.` : `Your ₱${BOOKING_FEE} deposit will be refunded in full.`}</span>` : ''}
           </div>
           <div class="acct-actions">
             ${confirming
@@ -2369,7 +2369,7 @@
             <strong>${escText(b.name)}</strong>
             <span class="x-status-chip is-declined">Declined by the restaurant</span>
             <span class="acct-meta">${escText(formatDateTime(fromISODate(b.date), b.minutes))} · ${guestsLabel(b.guests)} · Ref ${escText(b.ref)}</span>
-            <span class="acct-meta">Your ₱${BOOKING_FEE} booking fee will be refunded.</span>
+            <span class="acct-meta">Your ₱${BOOKING_FEE} deposit will be refunded in full.</span>
           </div>
           <div class="acct-actions"><button type="button" class="x-text-btn" data-acct-booking="dismiss">Dismiss</button></div>
         </li>`).join('')}
@@ -2504,10 +2504,10 @@
         </div>` : ''}
 
         <div class="acct-policy">
-          <p><strong>₱${BOOKING_FEE} booking fee</strong> comes off your food bill when you dine.</p>
+          <p><strong>₱${BOOKING_FEE} table deposit</strong>, credited in full to your bill when you dine. Your table is held for 15 minutes past your booking time.</p>
           <p>${late
-            ? `It's less than 2 hours to go, so the booking fee won't be refunded if you cancel.`
-            : `Free cancellation until <strong>${escText(minutesToLabel(freeUntil, freeUntil.getHours() * 60 + freeUntil.getMinutes()))}</strong>.`}</p>
+            ? `It's less than 2 hours to go, so if you cancel now the deposit goes to the restaurant.`
+            : `Free cancellation, with a full deposit refund, until <strong>${escText(minutesToLabel(freeUntil, freeUntil.getHours() * 60 + freeUntil.getMinutes()))}</strong>.`} <a href="about.html#policies">Booking policies</a></p>
         </div>
 
         <div class="acct-detail-actions">
@@ -2517,7 +2517,7 @@
         </div>
         <div class="acct-detail-cancel${detailConfirm ? ' is-confirming' : ''}">
           ${detailConfirm
-            ? `<p class="acct-warn">${late ? `Less than 2 hours to go, so the ₱${BOOKING_FEE} booking fee won't be refunded.` : `Your ₱${BOOKING_FEE} booking fee will be refunded.`}</p>
+            ? `<p class="acct-warn">${late ? `Less than 2 hours to go, so your ₱${BOOKING_FEE} deposit goes to the restaurant.` : `Your ₱${BOOKING_FEE} deposit will be refunded in full.`}</p>
                <div><button type="button" class="btn btn-dark btn-sm" data-acct-detail="cancel-yes">Cancel booking</button>
                <button type="button" class="btn btn-outline-dark btn-sm" data-acct-detail="cancel-no">Keep it</button></div>`
             : '<button type="button" class="x-text-btn acct-cancel-link" data-acct-detail="cancel">Cancel this booking</button>'}
