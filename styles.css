@@ -1251,6 +1251,11 @@ button.x-text-btn { min-height: 24px; }
   }
 }
 
+/* Large desktop: drop the side padding like the header does, so the filters line up with the logo */
+@media (min-width: 1440px) {
+  .x-layout { padding-left: 0; padding-right: 0; }
+}
+
 /* Below 960px: filters become a slide-up sheet */
 @media (max-width: 959.98px) {
   .x-filter-btn { display: inline-flex; }

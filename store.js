@@ -105,7 +105,7 @@
   function slotsFor(r, dateIso) {
     if (r.closedDays.includes(fromIso(dateIso).getDay())) return [];
     const out = [];
-    for (let m = Math.max(r.hours.open, 11 * 60); m <= Math.min(r.hours.close - 60, 22 * 60); m += 30) out.push(m);
+    for (let m = Math.max(r.hours.open, 10 * 60); m <= Math.min(r.hours.close - 60, 22 * 60); m += 30) out.push(m);
     return out;
   }
   function seedDay(r, data, dateIso) {

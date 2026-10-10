@@ -674,7 +674,7 @@
   const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
   // Booking rules — the usual set for restaurant reservation apps
-  const SLOT_START = 11 * 60;       // first seating 11:00 AM
+  const SLOT_START = 10 * 60;       // first seating 10:00 AM
   const SLOT_END = 22 * 60;         // last seating 10:00 PM
   const SLOT_STEP = 30;             // every 30 minutes
   const LEAD_MINUTES = 30;          // can't book a slot less than 30 min away
