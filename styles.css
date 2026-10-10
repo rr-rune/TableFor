@@ -2471,3 +2471,28 @@ textarea:not([readonly]), [contenteditable="true"] { caret-color: var(--ink); }
 .pay-breakdown > div:not(:first-child) { border-top: 1px solid var(--rule); }
 .policy-card p + p { margin-top: 8px; }
 .policy-card p strong { color: var(--ink); }
+
+/* ---------- Cancellation fee on hold (linked payment method) ---------- */
+.charges-hold {
+  display: grid; gap: 2px; margin-top: 6px; padding: 8px 10px; border-radius: 10px;
+  background: var(--white); border: 1px dashed var(--line-control);
+}
+.charges-hold .charges-row > span:last-child { color: var(--text-muted); font-weight: 600; }
+.pay-breakdown .is-hold { background: var(--white); }
+.pay-breakdown .is-hold dd { color: var(--text-muted); }
+.pay-hold-tag {
+  display: inline-block; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+  color: #7A5A12; background: #FFF6DE; border-radius: 999px; padding: 2px 8px; margin-right: 4px; vertical-align: middle;
+}
+.acct-pay .acct-hold { border-top: 1px dashed var(--rule); margin-top: 6px; padding-top: 8px; }
+.acct-pay .acct-hold small { display: block; font-size: 0.76rem; color: var(--text-muted); }
+.acct-pay .acct-hold strong { color: var(--text-muted); }
+.op-hold { display: block; font-size: 0.82rem; margin: 4px 0; padding: 6px 10px; border-radius: 8px; background: #FFF6DE; color: #7A5A12; }
+.op-hold.is-charged { background: #F1F8F3; color: #2E7D4F; }
+
+/* Linking a payment method in the sign-in dialog */
+#authWallet .pay-methods { margin-bottom: 12px; }
+#authWallet .pay-method { padding: 9px 12px; }
+#authWallet .pay-demo { margin: 0 0 12px; }
+#authWallet h2:focus { outline: none; }
+#authWallet [hidden] { display: none !important; }

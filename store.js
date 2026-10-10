@@ -64,14 +64,16 @@
     writeAll(all);
   }
 
-  /* ---------- What a diner pays online when booking ----------
-     · Reservation tax: pays for TableFor's booking service (the restaurant gets a share).
-       Set by each restaurant, minimum ₱100. Not credited to the bill.
-     · Cancellation fee: ₱250 per guest, returned (taken off the bill) when the diner shows up.
-     · Pre-order deposit: 20% of every dish pre-ordered, returned (taken off the bill) when the diner shows up.
-     Cancel 15+ minutes before (or if the restaurant declines/cancels) → everything is refunded.
-     Later than that, or a no-show → the cancellation fee and pre-order deposit are forfeited
-     to the restaurant, and the reservation tax isn't refunded. */
+  /* ---------- What a diner pays when booking ----------
+     Every diner links a payment method (GCash, Maya or a bank account) when they create
+     their account. When booking:
+     · Reservation tax: paid now. Pays for TableFor's booking service (the restaurant gets a
+       share). Set by each restaurant, minimum ₱100. Not taken off the bill.
+     · Pre-order deposit: paid now, 20% of every dish pre-ordered, taken off the bill.
+     · Cancellation fee: ₱250 per guest, NOT paid now. It's only charged to the linked
+       payment method if the diner cancels less than 15 minutes before, or doesn't show up.
+     Cancel 15+ minutes before (or if the restaurant declines/cancels) → what was paid is
+     refunded and the cancellation fee is never charged. */
   const FREE_CANCEL_MINUTES = 15;   // free cancellation up to 15 minutes before the booking
   const GRACE_MINUTES = 15;         // table held 15 minutes past the booking time
   const TAX_MIN = 100;
@@ -88,13 +90,27 @@
     // 20% of each dish line, rounded to the peso
     const preorderDeposit = lines.reduce((n, l) => n + Math.round(l.qty * l.price * PREORDER_DEPOSIT_RATE), 0);
     const preorderSubtotal = lines.reduce((n, l) => n + l.qty * l.price, 0);
+    // The cancellation fee is held on the linked account, not paid now
     return { tax, guests: party, perGuest: CANCEL_FEE_PER_GUEST, cancelFee, preorderSubtotal, preorderDeposit,
-      credit: cancelFee + preorderDeposit, total: tax + cancelFee + preorderDeposit };
+      credit: preorderDeposit, total: tax + preorderDeposit, held: true };
   }
   // What was paid for a booking (bookings made before online payment had a flat ₱100 deposit)
   function paymentOf(b) {
     if (b && b.payment) return b.payment;
     return { legacy: true, tax: 0, cancelFee: 100, preorderDeposit: 0, credit: 100, total: 100, method: null };
+  }
+
+  /* ---------- Linked payment method (one per diner account) ---------- */
+  const WALLETS_KEY = 'tablefor_wallets';
+  function readWallets() {
+    try { return JSON.parse(localStorage.getItem(WALLETS_KEY)) || {}; } catch { return {}; }
+  }
+  function getWallet(accountId) { return accountId ? readWallets()[accountId] || null : null; }
+  function saveWallet(accountId, wallet) {
+    const all = readWallets();
+    all[accountId] = { ...wallet, linkedAt: Date.now() };
+    try { localStorage.setItem(WALLETS_KEY, JSON.stringify(all)); } catch { /* storage unavailable */ }
+    document.dispatchEvent(new CustomEvent('tablefor:walletchange'));
   }
   const METHOD_LABEL = { gcash: 'GCash', maya: 'Maya', bank: 'Online banking' };
   function paidWith(p) {
@@ -104,9 +120,12 @@
   // One sentence about the refund if the diner cancels now
   function refundNote(b, late) {
     const p = paymentOf(b);
-    return late
-      ? `Free cancellation has ended, so your ${peso(p.cancelFee)} cancellation fee is forfeited to the restaurant and nothing is refunded.`
-      : `Your ${peso(p.total)} payment will be refunded in full${p.method ? ` to ${paidWith(p)}` : ''}.`;
+    if (late) {
+      return p.held
+        ? `Free cancellation has ended, so your ${peso(p.cancelFee)} cancellation fee will be charged to ${p.holdWith || paidWith(p) || 'your linked account'} and paid to the restaurant.`
+        : `Free cancellation has ended, so your ${peso(p.cancelFee)} cancellation fee is forfeited to the restaurant and nothing is refunded.`;
+    }
+    return `Your ${peso(p.total)} payment will be refunded in full${p.method ? ` to ${paidWith(p)}` : ''}${p.held ? ', and no cancellation fee is charged' : ''}.`;
   }
   // Is free cancellation over for this booking? (less than 15 minutes to go, or already started)
   function isLateCancel(b, now) {
@@ -258,6 +277,7 @@
     TURN_MINUTES, ACTIVE,
     TAX_MIN, TAX_DEFAULT, CANCEL_FEE_PER_GUEST, PREORDER_DEPOSIT_RATE, FREE_CANCEL_MINUTES, GRACE_MINUTES,
     charges, paymentOf, paidWith, refundNote, isLateCancel, peso, METHOD_LABEL,
+    getWallet, saveWallet,
     ownerData, saveOwnerData, applyOverrides, ensureSeeded,
     reservationsFor, findReservation, updateReservation, addReservation,
     isBlocked, tableHolder, isTableFree,

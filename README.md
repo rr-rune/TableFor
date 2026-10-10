@@ -2,7 +2,7 @@
 
 A restaurant discovery and table booking website for Angeles City, Clark, Mabalacat and San Fernando, Pampanga.
 
-Diners can browse a curated list of restaurants, check which places can take their date, time and group, and book a table by paying online first (a simulated GCash, Maya or online-banking checkout; no real money moves). Restaurant owners get a Partner Portal to manage bookings, their menu, floor plan and booking rules.
+Diners can browse a curated list of restaurants, check which places can take their date, time and group, link a payment method (GCash, Maya or a bank account) when they create an account, and book a table by paying online first (a simulated checkout; no real money moves). Restaurant owners get a Partner Portal to manage bookings, their menu, floor plan and booking rules.
 
 TableFor is a front-end mock-up built for coursework at Holy Angel University. There's no server or database. Everything is plain HTML, CSS and JavaScript, and the "backend" is the browser's own storage (localStorage).
 
@@ -35,11 +35,13 @@ Every page has the same header (Home, Explore, Partner, Blog, About Us) and foot
   - "View details" shows the full booking: reference, table, pre-order total and when free cancellation ends.
   - From the details you can call the restaurant, get directions, add the booking to your calendar (.ics) or cancel.
 - **Booking policies** (shown in full on About Us → Booking policies):
-  - Paid online before the table is reserved: the reservation tax (set by the owner, minimum ₱100), a ₱250 cancellation fee per guest, and 20% of any pre-ordered dishes. A **?** button next to each charge explains it.
+  - Every diner links a payment method (GCash, Maya or a bank account) when creating an account. It can be changed from the profile menu under **Payment method**.
+  - Paid online before the table is reserved: the reservation tax (set by the owner, minimum ₱100) and 20% of any pre-ordered dishes. A **?** button next to each charge explains it.
+  - The ₱250-per-guest cancellation fee isn't paid when booking. It's held on the linked payment method and only charged on a late cancellation or a no-show.
   - The reservation tax pays for TableFor's booking service; the restaurant receives a share of it. It isn't taken off the bill.
-  - The cancellation fee and pre-order deposit are returned when you show up, taken off the bill.
+  - The pre-order deposit is taken off the bill when you show up.
   - Free cancellation, with a full refund, up to 15 minutes before.
-  - Late cancellations (less than 15 minutes before, or once the booking has started) and no-shows: the cancellation fee and pre-order deposit are forfeited to the restaurant, and the reservation tax isn't refunded. A late cancellation shows a warning pop-up the diner has to confirm.
+  - Late cancellations (less than 15 minutes before, or once the booking has started) and no-shows: the cancellation fee is charged to the linked payment method and paid to the restaurant, the pre-order deposit goes to the restaurant, and the reservation tax isn't refunded. A late cancellation shows a warning pop-up the diner has to confirm. Owners marking a no-show charges the fee.
   - Tables are held for 15 minutes past the booking time.
   - If the restaurant declines or cancels, the payment is refunded in full.
   - One voucher per booking, and each voucher works once.
@@ -56,7 +58,7 @@ Every page has the same header (Home, Explore, Partner, Blog, About Us) and foot
 ### Sign in (mock-up)
 - Booking needs a diner account. Browsing and menus don't.
 - **Formats are enforced, but any correctly formatted details sign you in:**
-  - Diners: an email, or a PH mobile number (e.g. 0917 123 4567), and a password of at least 6 characters.
+  - Diners: an email, or a PH mobile number (e.g. 0917 123 4567), and a password of at least 6 characters. New accounts then link a payment method, verified with a 6-digit code (any 6 digits work).
   - Owners: a business email, plus choosing their restaurant.
 - Only one account can be signed in at a time. Signing in again asks you to sign out first.
 - Signing in or out updates every open page and tab.
@@ -96,6 +98,7 @@ Scripts load in this order on every page: `sync.js` (in the head), then `restaur
 | `tablefor_bookings` | Diner bookings |
 | `tablefor_vouchers_v2` | Claimed voucher codes |
 | `tablefor_saved` | Saved (hearted) restaurants |
+| `tablefor_wallets` | Each diner account's linked payment method |
 | `tablefor_owner` | Owner changes: menu, hours, floor plan, settings, sample reservations |
 | `tablefor_owner_guide_*` | Whether an owner has seen the portal guide |
 | `tablefor_sync_at` | When the data last changed (used by `sync.js`) |

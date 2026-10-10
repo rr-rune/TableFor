@@ -339,10 +339,11 @@
         ${x.payment ? `<div><dt>Paid online</dt><dd><strong>${peso(x.payment.total)}</strong> <span class="op-muted">via ${esc(S.paidWith(x.payment))}</span>
           <ul class="op-mini-list">
             <li>Reservation tax <span class="op-muted">${peso(x.payment.tax)}</span></li>
-            <li>Cancellation fee <span class="op-muted">${peso(x.payment.perGuest)} × ${x.guests} = ${peso(x.payment.cancelFee)}</span></li>
             ${x.payment.preorderDeposit ? `<li>Pre-order deposit (20%) <span class="op-muted">${peso(x.payment.preorderDeposit)}</span></li>` : ''}
+            ${x.payment.held ? '' : `<li>Cancellation fee <span class="op-muted">${peso(x.payment.perGuest)} × ${x.guests} = ${peso(x.payment.cancelFee)}</span></li>`}
           </ul>
-          <span class="op-muted">${x.lateCancel ? `Cancelled late by the diner: ${peso(x.forfeited)} forfeited to you.` : `Take ${peso(x.payment.credit)} off the bill when they dine.`} Ref ${esc(x.payment.txn)}</span></dd></div>` : ''}
+          ${x.payment.held ? `<span class="op-hold${x.payment.feeCharged ? ' is-charged' : ''}">Cancellation fee ${peso(x.payment.cancelFee)}: ${x.payment.feeCharged ? `charged to the diner and paid to you` : `on hold on the diner's linked ${esc(x.payment.holdWith || 'account')}. Charged only if they cancel late or don't show up`}</span>` : ''}
+          <span class="op-muted">${x.lateCancel ? `Cancelled late by the diner: ${peso(x.forfeited)} goes to you.` : x.payment.held ? (x.payment.preorderDeposit ? `Take ${peso(x.payment.preorderDeposit)} off the bill when they dine.` : '') : `Take ${peso(x.payment.credit)} off the bill when they dine.`} Ref ${esc(x.payment.txn)}</span></dd></div>` : ''}
       </dl>
       ${editableTable ? `
         <label class="modal-field">
@@ -360,13 +361,19 @@
   }
 
   function setStatus(ref, status, extra) {
-    const x = S.updateReservation(rid, ref, { status, ...(extra || {}) });
+    // A no-show is charged the cancellation fee held on their linked payment method
+    const before = S.findReservation(rid, ref);
+    const more = { ...(extra || {}) };
+    if (status === 'no-show' && before && before.payment && before.payment.held && !before.payment.feeCharged) {
+      more.payment = { ...before.payment, feeCharged: true, feeChargedAt: Date.now() };
+    }
+    const x = S.updateReservation(rid, ref, { status, ...more });
     if (!x) return;
     const msg = {
       confirmed: `Accepted. ${x.fullName} will see the booking as confirmed.`,
       seated: `${x.fullName} is seated.`,
       completed: `Visit completed. The table is free again.`,
-      'no-show': `Marked ${x.fullName} as a no-show.`,
+      'no-show': x.payment && x.payment.held ? `Marked ${x.fullName} as a no-show. Their ${peso(x.payment.cancelFee)} cancellation fee was charged and paid to you.` : `Marked ${x.fullName} as a no-show.`,
       cancelled: extra && extra.declined ? `Declined. ${x.fullName} will be told and refunded.` : `Cancelled. ${x.fullName} will be told and refunded.`,
     }[status];
     toast(msg);
@@ -827,7 +834,7 @@
 
       <form class="op-panel op-form" id="opTax" novalidate>
         <h2>Reservation tax</h2>
-        <p class="op-muted">The amount every diner pays online to reserve a table with you, on top of the ${peso(S.CANCEL_FEE_PER_GUEST)}-per-guest cancellation fee and the 20% pre-order deposit. It pays for TableFor's booking service, and you receive a share of it. The minimum is ${peso(S.TAX_MIN)}. Unlike the cancellation fee and pre-order deposit, it isn't taken off the diner's bill. It's refunded only when a booking is cancelled at least ${S.FREE_CANCEL_MINUTES} minutes ahead, or when you decline or cancel it.</p>
+        <p class="op-muted">The amount every diner pays online to reserve a table with you, together with the 20% pre-order deposit. It pays for TableFor's booking service, and you receive a share of it. The minimum is ${peso(S.TAX_MIN)}. Unlike the pre-order deposit, it isn't taken off the diner's bill. It's refunded only when a booking is cancelled at least ${S.FREE_CANCEL_MINUTES} minutes ahead, or when you decline or cancel it.</p>
         <div class="op-tax-row">
           <label class="modal-field op-tax-field"><span>Amount per booking</span>
             <span class="op-peso-input"><span aria-hidden="true">₱</span><input type="number" name="tax" min="${S.TAX_MIN}" step="10" inputmode="numeric" value="${R.tax}" aria-describedby="opTaxPreview"></span></label>
@@ -849,8 +856,9 @@
       <section class="op-panel">
         <h2>TableFor policies</h2>
         <ul class="op-policy">
-          <li><strong>Paid online before the table is reserved</strong><span>Diners pay the reservation tax, a ${peso(S.CANCEL_FEE_PER_GUEST)} cancellation fee per guest and 20% of any pre-order with GCash, Maya or online banking. The cancellation fee and pre-order deposit are returned to them when they show up, taken off their bill.</span></li>
-          <li><strong>Free cancellation up to ${S.FREE_CANCEL_MINUTES} minutes before</strong><span>The diner gets the whole payment back. After that, or on a no-show, the cancellation fee and pre-order deposit are forfeited to you.</span></li>
+          <li><strong>Paid online before the table is reserved</strong><span>Diners pay the reservation tax and 20% of any pre-order with the GCash, Maya or bank account linked to their TableFor account. The pre-order deposit is taken off their bill when they dine.</span></li>
+          <li><strong>${peso(S.CANCEL_FEE_PER_GUEST)}-per-guest cancellation fee, held</strong><span>It isn't paid when booking. It stays on hold on the diner's linked account and is charged and paid to you only if they cancel less than ${S.FREE_CANCEL_MINUTES} minutes before or don't show up (when you mark a no-show).</span></li>
+          <li><strong>Free cancellation up to ${S.FREE_CANCEL_MINUTES} minutes before</strong><span>The diner gets their payment back and is never charged the cancellation fee. After that, or on a no-show, the cancellation fee is charged and the pre-order deposit goes to you.</span></li>
           <li><strong>15-minute grace period</strong><span>Hold the table for 15 minutes after the booking time, then you can mark the guest as a no-show.</span></li>
           <li><strong>Your cancellations</strong><span>If you decline or cancel a booking, the diner's payment is refunded in full.</span></li>
           <li><strong>Tables held for 90 minutes</strong><span>A table can't be booked again within 90 minutes of another booking.</span></li>
@@ -877,7 +885,7 @@
 
   function taxPreview(tax) {
     const c = S.charges({ tax }, 2, []);
-    return `Example: a table for 2 with no pre-order pays ${peso(c.total)} (${peso(c.tax)} tax + ${peso(c.cancelFee)} cancellation fee).`;
+    return `Example: a table for 2 with no pre-order pays ${peso(c.total)} when booking. Their ${peso(c.cancelFee)} cancellation fee stays on hold unless they cancel late or don't show up.`;
   }
   function saveTax(form) {
     const err = form.querySelector('.auth-error');

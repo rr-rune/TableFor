@@ -1091,9 +1091,11 @@
     const b = list.find((x) => x.ref === ref);
     if (!b) return;
     if (window.TableForStore.isLateCancel(b)) {
-      // After free cancellation: the restaurant keeps the cancellation fee and pre-order deposit
+      // After free cancellation: the held cancellation fee is charged to the linked account,
+      // and the restaurant keeps it together with the pre-order deposit
       const p = window.TableForStore.paymentOf(b);
-      saveBookings(list.map((x) => (x.ref === ref ? { ...x, status: 'cancelled', cancelledBy: 'diner', cancelledAt: Date.now(), lateCancel: true,
+      const payment = p.held ? { ...p, feeCharged: true, feeChargedAt: Date.now() } : b.payment;
+      saveBookings(list.map((x) => (x.ref === ref ? { ...x, payment, status: 'cancelled', cancelledBy: 'diner', cancelledAt: Date.now(), lateCancel: true,
         forfeited: (p.cancelFee || 0) + (p.preorderDeposit || 0), refunded: 0 } : x)));
     } else {
       saveBookings(list.filter((x) => x.ref !== ref));
@@ -1110,13 +1112,13 @@
       <h2 id="lcTitle">Free cancellation is over</h2>
       <p id="lcDesc"></p>
       <div class="lc-forfeit">
-        <span class="lc-forfeit-label">Forfeited to <span id="lcRest"></span></span>
+        <span class="lc-forfeit-label"><span id="lcVerb">Forfeited</span> to <span id="lcRest"></span></span>
         <strong id="lcFee"></strong>
         <span class="lc-forfeit-sub" id="lcFeeSub"></span>
       </div>
       <ul class="lc-lines" id="lcLines"></ul>
-      <p class="lc-back">You get back <strong>₱0</strong></p>
-      <label class="lc-ack"><input type="checkbox" id="lcAck"> <span>I understand that my cancellation fee goes to the restaurant and I won't get this money back.</span></label>
+      <p class="lc-back" id="lcBack">You get back <strong>₱0</strong></p>
+      <label class="lc-ack"><input type="checkbox" id="lcAck"> <span id="lcAckText">I understand that my cancellation fee goes to the restaurant and I won't get this money back.</span></label>
       <div class="lc-actions">
         <button type="button" class="btn btn-dark" data-lc="keep">Keep my booking</button>
         <button type="button" class="btn lc-confirm" data-lc="confirm" disabled>Cancel anyway</button>
@@ -1143,7 +1145,13 @@
       : `Your booking at <strong>${escText(b.name)}</strong> is at ${escText(formatTime(b.minutes))}. Free cancellation ended at ${escText(formatTime(freeUntil.getHours() * 60 + freeUntil.getMinutes()))}, ${FREE_CANCEL_MINUTES} minutes before your booking.`;
     q('#lcRest').textContent = b.name;
     q('#lcFee').textContent = S.peso(p.cancelFee);
-    q('#lcFeeSub').textContent = p.legacy ? 'Table deposit' : `Cancellation fee (${S.peso(p.perGuest)} × ${b.guests} ${b.guests === 1 ? 'guest' : 'guests'})`;
+    q('#lcVerb').textContent = p.held ? 'Charged now and paid' : 'Forfeited';
+    q('#lcFeeSub').textContent = p.legacy ? 'Table deposit'
+      : `Cancellation fee (${S.peso(p.perGuest)} × ${b.guests} ${b.guests === 1 ? 'guest' : 'guests'})${p.held ? `, charged to ${p.holdWith || S.paidWith(p)}` : ''}`;
+    q('#lcBack').innerHTML = p.held ? `You get back <strong>₱0</strong>, and <strong>${S.peso(p.cancelFee)}</strong> is charged` : 'You get back <strong>₱0</strong>';
+    q('#lcAckText').textContent = p.held
+      ? `I understand that my ${S.peso(p.cancelFee)} cancellation fee will be charged to my linked account and paid to the restaurant.`
+      : 'I understand that my cancellation fee goes to the restaurant and I won\'t get this money back.';
     q('#lcLines').innerHTML = [
       p.preorderDeposit ? `<li><span>Pre-order deposit, also forfeited to the restaurant</span><span>${S.peso(p.preorderDeposit)}</span></li>` : '',
       p.tax ? `<li><span>Reservation tax, not refunded</span><span>${S.peso(p.tax)}</span></li>` : '',
@@ -1151,7 +1159,7 @@
     q('#lcLines').hidden = !q('#lcLines').innerHTML;
     q('#lcAck').checked = false;
     q('[data-lc="confirm"]').disabled = true;
-    q('[data-lc="confirm"]').textContent = `Cancel and forfeit ${S.peso(p.total)}`;
+    q('[data-lc="confirm"]').textContent = p.held ? `Cancel and pay the ${S.peso(p.cancelFee)} fee` : `Cancel and forfeit ${S.peso(p.total)}`;
     lateOverlay.hidden = false;
     requestAnimationFrame(() => { lateOverlay.classList.add('is-open'); q('[data-lc="keep"]').focus(); });
   }
@@ -1920,7 +1928,7 @@
   // What each charge is, shown by the "?" buttons
   const CHARGE_HELP = {
     tax: (c) => `The reservation tax pays for TableFor's booking service: finding you a table, holding it, and handling your online payment and booking details. Each restaurant sets its own amount (at least ${peso(STORE.TAX_MIN)}), and the restaurant receives a share of it. It isn't taken off your bill. It's refunded only if you cancel at least ${STORE.FREE_CANCEL_MINUTES} minutes before or the restaurant cancels.`,
-    cancel: (c) => `${peso(c.perGuest)} per guest, held to protect the restaurant from no-shows. It's returned to you when you show up: the full ${peso(c.cancelFee)} is taken off your bill. If you cancel less than ${STORE.FREE_CANCEL_MINUTES} minutes before your booking, or don't show up, it's forfeited to the restaurant.`,
+    cancel: (c) => `${peso(c.perGuest)} per guest, to protect the restaurant from no-shows. You don't pay it now: it stays on hold on the payment method linked to your account. It's only charged, and paid to the restaurant, if you cancel less than ${STORE.FREE_CANCEL_MINUTES} minutes before your booking or don't show up. Show up or cancel in time, and you never pay it.`,
     preorder: (c) => `20% of the dishes you pre-ordered, so the kitchen can prepare them for you. It's returned to you when you show up: the ${peso(c.preorderDeposit)} is taken off your bill. If you cancel less than ${STORE.FREE_CANCEL_MINUTES} minutes before or don't show up, it's forfeited to the restaurant.`,
   };
   let helpSeq = 0;
@@ -1952,13 +1960,14 @@
     const c = currentCharges();
     if (!c) return;
     modalFee.classList.add('modal-charges');
+    const wallet = STORE.getWallet((getSession() || {}).id);
     modalFee.innerHTML = `
       <span class="charges-title">Due now to reserve</span>
       ${chargeLine('tax', 'Reservation tax', c.tax, c)}
-      ${chargeLine('cancel', 'Cancellation fee', c.cancelFee, c, `${peso(c.perGuest)} × ${c.guests} ${c.guests === 1 ? 'guest' : 'guests'}`)}
       ${c.preorderDeposit ? chargeLine('preorder', 'Pre-order deposit', c.preorderDeposit, c, `20% of ${peso(c.preorderSubtotal)}`) : ''}
-      <span class="charges-row charges-total"><span>Total</span><span>${peso(c.total)}</span></span>
-      <span class="charges-note">Pay online with GCash, Maya or online banking. The ${peso(c.credit)} in fees and deposits is returned when you show up, taken off your bill. Free cancellation up to ${STORE.FREE_CANCEL_MINUTES} minutes before your booking. <a href="about.html#policies">Booking policies</a></span>`;
+      <span class="charges-row charges-total"><span>Total due now</span><span>${peso(c.total)}</span></span>
+      <span class="charges-hold">${chargeLine('cancel', 'Cancellation fee', c.cancelFee, c, `${peso(c.perGuest)} × ${c.guests}, not charged now`)}</span>
+      <span class="charges-note">The cancellation fee stays on hold${wallet ? ` on ${escText(STORE.paidWith(wallet))}` : ' on your linked payment method'} and is only charged if you cancel less than ${STORE.FREE_CANCEL_MINUTES} minutes before or don't show up.${c.preorderDeposit ? ` The ${peso(c.preorderDeposit)} pre-order deposit is taken off your bill.` : ''} <a href="about.html#policies">Booking policies</a></span>`;
     modalSubmit.textContent = `Continue to payment · ${peso(c.total)}`;
   }
 
@@ -2074,13 +2083,20 @@
       const id = key ? `payHelp${++helpSeq}` : '';
       return `<div${cls ? ` class="${cls}"` : ''}><dt>${label}${key ? ` <button type="button" class="charge-help" aria-expanded="false" aria-controls="${id}" aria-label="What is the ${label.toLowerCase()}?">?</button>` : ''}${sub ? `<small>${sub}</small>` : ''}</dt><dd>${value}</dd></div>${key ? `<p class="charge-help-text" id="${id}" hidden>${CHARGE_HELP[key](c)}</p>` : ''}`;
     };
+    const wallet = STORE.getWallet((getSession() || {}).id);
     payQ('#payBreakdown').innerHTML = [
       line('Reservation tax', peso(c.tax), '', 'tax'),
-      line('Cancellation fee', peso(c.cancelFee), '', 'cancel', `${peso(c.perGuest)} × ${c.guests}`),
       c.preorderDeposit ? line('Pre-order deposit', peso(c.preorderDeposit), '', 'preorder', `20% of ${peso(c.preorderSubtotal)}`) : '',
       line('Total due now', peso(c.total), 'is-total'),
-    ].join('') + `<p class="pay-credit">${peso(c.credit)} is returned when you show up, taken off your bill. The reservation tax pays for TableFor's service and isn't returned.</p>`;
+      line('Cancellation fee', `<span class="pay-hold-tag">On hold</span> ${peso(c.cancelFee)}`, 'is-hold', 'cancel', `${peso(c.perGuest)} × ${c.guests} · not charged now`),
+    ].join('') + `<p class="pay-credit">The cancellation fee is only charged to ${wallet ? escText(STORE.paidWith(wallet)) : 'your linked payment method'} if you cancel less than ${STORE.FREE_CANCEL_MINUTES} minutes before or don't show up.${c.preorderDeposit ? ` The pre-order deposit is taken off your bill.` : ''} The reservation tax pays for TableFor's service.</p>`;
     payQ('#payStartBtn').textContent = `Pay ${peso(c.total)}`;
+    // Pay with the linked payment method by default
+    if (wallet) {
+      const radio = payQ(`input[name="payMethod"][value="${wallet.method}"]`);
+      if (radio) radio.checked = true;
+      if (wallet.method === 'bank') { payQ('#payBank').value = wallet.bank || ''; payQ('#payBankName').value = wallet.holder || ''; }
+    }
     if (!payQ('#payMobile').value) payQ('#payMobile').value = booking.phone || '';
     if (!payQ('#payBankName').value) payQ('#payBankName').value = booking.fullName || '';
     payError.hidden = true;
@@ -2183,6 +2199,8 @@
         tax: c.tax, perGuest: c.perGuest, cancelFee: c.cancelFee,
         preorderSubtotal: c.preorderSubtotal, preorderDeposit: c.preorderDeposit,
         credit: c.credit, total: c.total,
+        // The cancellation fee isn't paid now: it's held on the account's linked payment method
+        held: true, holdWith: STORE.paidWith(STORE.getWallet((getSession() || {}).id) || {}) || null, feeCharged: false,
       };
       finishBooking(b, r);
     }, 1600);
@@ -2215,10 +2233,11 @@
     byId('modalConfirmOccasionRow').hidden = !booking.occasion;
     const details = modalConfirmView.querySelector('.confirm-details');
     if (details && !details.querySelector('#modalConfirmPaid')) {
-      details.insertAdjacentHTML('beforeend', '<div><dt>Paid</dt><dd id="modalConfirmPaid"></dd></div><div><dt>Payment ref</dt><dd id="modalConfirmTxn"></dd></div>');
+      details.insertAdjacentHTML('beforeend', '<div><dt>Paid</dt><dd id="modalConfirmPaid"></dd></div><div><dt>Cancellation fee</dt><dd id="modalConfirmHold"></dd></div><div><dt>Payment ref</dt><dd id="modalConfirmTxn"></dd></div>');
     }
     if (details) {
       details.querySelector('#modalConfirmPaid').textContent = `${peso(booking.payment.total)} · ${STORE.paidWith(booking.payment)}`;
+      details.querySelector('#modalConfirmHold').textContent = `${peso(booking.payment.cancelFee)} on hold, not charged`;
       details.querySelector('#modalConfirmTxn').textContent = booking.payment.txn;
     }
     modalDirections.href = mapsUrl(r);
@@ -2405,6 +2424,46 @@
         </div>
       </form>
 
+      <form class="auth-view" id="authWallet" novalidate hidden>
+        <p class="eyebrow"><span class="dot"></span><span id="walletStep">Step 2 of 2</span></p>
+        <h2 id="walletTitle">Link a payment method</h2>
+        <p class="auth-reason" id="walletReason">TableFor uses this account to pay for bookings. Your cancellation fee stays on hold and is only charged if you cancel less than 15 minutes before or don't show up.</p>
+        <div class="wallet-stage" data-stage="details">
+          <fieldset class="pay-methods">
+            <legend>Payment method</legend>
+            <label class="pay-method is-selected"><input type="radio" name="walletMethod" value="gcash" checked>
+              <span class="pay-badge is-gcash" aria-hidden="true">G</span><span><strong>GCash</strong><small>E-wallet</small></span></label>
+            <label class="pay-method"><input type="radio" name="walletMethod" value="maya">
+              <span class="pay-badge is-maya" aria-hidden="true">M</span><span><strong>Maya</strong><small>E-wallet</small></span></label>
+            <label class="pay-method"><input type="radio" name="walletMethod" value="bank">
+              <span class="pay-badge is-bank" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10h18L12 4 3 10Z"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/></svg></span><span><strong>Bank account</strong><small>Online banking</small></span></label>
+          </fieldset>
+          <label class="modal-field auth-field" data-wfor="wallet">
+            <span id="walletMobileLabel">GCash mobile number</span>
+            <input type="tel" name="walletMobile" inputmode="tel" autocomplete="tel" placeholder="0917 123 4567" maxlength="16">
+          </label>
+          <label class="modal-field auth-field" data-wfor="bank" hidden>
+            <span>Bank</span>
+            <select name="walletBank"><option value="">Choose your bank</option>${['BDO Unibank', 'BPI', 'Metrobank', 'Landbank', 'UnionBank', 'Security Bank', 'RCBC', 'PNB'].map((b) => `<option>${b}</option>`).join('')}</select>
+          </label>
+          <label class="modal-field auth-field" data-wfor="bank" hidden>
+            <span>Account holder name</span>
+            <input type="text" name="walletHolder" autocomplete="name" maxlength="60">
+          </label>
+        </div>
+        <div class="wallet-stage" data-stage="code" hidden>
+          <p class="pay-otp-msg" id="walletCodeMsg"></p>
+          <label class="modal-field auth-field">
+            <span>6-digit code</span>
+            <input type="text" name="walletCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" class="pay-otp-input">
+          </label>
+          <p class="pay-demo">Demo: any 6 digits works.</p>
+        </div>
+        <p class="auth-error" role="alert" hidden></p>
+        <button type="submit" class="btn btn-amber auth-submit" id="walletSubmit">Send verification code</button>
+        <p class="auth-demo">Prototype: nothing is charged when you link your account.</p>
+        <button type="button" class="link-arrow auth-back" data-auth="wallet-back" hidden><span aria-hidden="true">&larr;</span> Change details</button>
+      </form>
       <div class="auth-view" id="authSwitch" hidden>
         <p class="eyebrow"><span class="dot"></span>Already signed in</p>
         <h2 id="authSwitchTitle">You're already signed in</h2>
@@ -2444,6 +2503,9 @@
   const dinerForm = authOverlay.querySelector('#authDiner');
   const ownerForm = authOverlay.querySelector('#authOwner');
   const switchView = authOverlay.querySelector('#authSwitch');
+  const walletForm = authOverlay.querySelector('#authWallet');
+  let walletPending = null;     // the new diner session, set once their payment method is linked
+  let walletStage = 'details';
   let switchTarget = 'diner';     // which sign-in form to show after signing out
   let authMethod = 'email';
   let authPending = null;       // what to do after a successful sign-in (e.g. open the booking form)
@@ -2467,7 +2529,13 @@
     dinerForm.hidden = view !== 'diner';
     ownerForm.hidden = view !== 'owner';
     switchView.hidden = view !== 'switch';
-    authDialog.setAttribute('aria-labelledby', view === 'switch' ? 'authSwitchTitle' : 'authTitle');
+    walletForm.hidden = view !== 'wallet';
+    authDialog.setAttribute('aria-labelledby', view === 'switch' ? 'authSwitchTitle' : view === 'wallet' ? 'walletTitle' : 'authTitle');
+    if (view === 'wallet') {
+      setWalletStage('details');
+      requestAnimationFrame(() => walletForm.querySelector('#walletTitle').focus && walletForm.querySelector('input[name="walletMethod"]:checked').focus());
+      return;
+    }
     if (view === 'switch') {
       requestAnimationFrame(() => switchView.querySelector('[data-auth="close"]').focus());
       return;
@@ -2504,6 +2572,8 @@
   }
   function closeAuth(keepPending) {
     if (authOverlay.hidden) return;
+    if (walletPending && !keepPending) showToast('Sign-in cancelled. Link a payment method to finish creating your account.');
+    walletPending = null;
     authOverlay.classList.remove('is-open');
     document.documentElement.classList.remove('auth-open');
     setTimeout(() => { authOverlay.hidden = true; }, 200);
@@ -2519,6 +2589,7 @@
     else if (btn.dataset.auth === 'close') closeAuth();
     else if (btn.dataset.auth === 'owner') showAuthView('owner');
     else if (btn.dataset.auth === 'diner') showAuthView('diner');
+    else if (btn.dataset.auth === 'wallet-back') setWalletStage('details');
     else if (btn.dataset.auth === 'switch') {
       const wasOwnerPage = document.body.dataset.page === 'owner' && (getSession() || {}).role === 'owner';
       clearSession();
@@ -2570,15 +2641,105 @@
 
     const prev = getSession();
     const sameUser = prev && prev.role === 'diner' && prev.id === id;
-    setSession({ role: 'diner', method: authMethod, id, name: sameUser ? prev.name || '' : '', since: Date.now() });
+    const session = { role: 'diner', method: authMethod, id, name: sameUser ? prev.name || '' : '', since: Date.now() };
     dinerForm.reset();
+    if (!STORE.getWallet(id)) {
+      // New account: link a payment method before signing in
+      openWalletStep(session, authMethod === 'mobile' ? id : '');
+      return;
+    }
+    finishDinerSignIn(session, 'Signed in. Welcome to TableFor!');
+  });
+  function finishDinerSignIn(session, message) {
+    setSession(session);
     renderAccount();
     const next = authPending;
     authPending = null;
+    walletPending = null;
     closeAuth(true);
-    showToast('Signed in. Welcome to TableFor!');
+    showToast(message);
     if (next) setTimeout(next, 220); // carry on with what they were doing (e.g. booking)
+  }
+
+  /* -- Linking a payment method: when creating an account, or changed later from the account menu -- */
+  function openWalletStep(session, mobileGuess) {
+    walletPending = session;            // null = changing the method of the signed-in diner
+    const changing = !session;
+    const current = changing ? STORE.getWallet((getSession() || {}).id) : null;
+    walletForm.reset();
+    walletForm.querySelector('#walletStep').textContent = changing ? 'Your account' : 'Step 2 of 2';
+    walletForm.querySelector('#walletTitle').textContent = changing ? 'Payment method' : 'Link a payment method';
+    walletForm.querySelector('#walletReason').textContent = changing && current
+      ? `Linked now: ${STORE.paidWith(current)}. Your cancellation fee is only charged to this account if you cancel less than ${STORE.FREE_CANCEL_MINUTES} minutes before or don't show up.`
+      : `TableFor uses this account to pay for your bookings. Your cancellation fee stays on hold and is only charged if you cancel less than ${STORE.FREE_CANCEL_MINUTES} minutes before or don't show up.`;
+    if (current) {
+      const r = walletForm.querySelector(`input[name="walletMethod"][value="${current.method}"]`);
+      if (r) r.checked = true;
+      if (current.method === 'bank') { walletForm.elements.walletBank.value = current.bank || ''; walletForm.elements.walletHolder.value = current.holder || ''; }
+    } else if (mobileGuess) walletForm.elements.walletMobile.value = mobileGuess;
+    syncWalletMethod();
+    if (authOverlay.hidden) {
+      authReturnFocus = document.activeElement;
+      authOverlay.hidden = false;
+      requestAnimationFrame(() => authOverlay.classList.add('is-open'));
+      document.documentElement.classList.add('auth-open');
+    }
+    walletPending = session;
+    showAuthView('wallet');
+  }
+  const walletMethod = () => (walletForm.querySelector('input[name="walletMethod"]:checked') || {}).value || 'gcash';
+  function syncWalletMethod() {
+    const m = walletMethod();
+    walletForm.querySelectorAll('[data-wfor="wallet"]').forEach((el) => { el.hidden = m === 'bank'; });
+    walletForm.querySelectorAll('[data-wfor="bank"]').forEach((el) => { el.hidden = m !== 'bank'; });
+    walletForm.querySelector('#walletMobileLabel').textContent = `${STORE.METHOD_LABEL[m === 'bank' ? 'gcash' : m]} mobile number`;
+    walletForm.querySelectorAll('.pay-method').forEach((l) => l.classList.toggle('is-selected', l.querySelector('input').checked));
+  }
+  function setWalletStage(stage) {
+    walletStage = stage;
+    walletForm.querySelectorAll('.wallet-stage').forEach((el) => { el.hidden = el.dataset.stage !== stage; });
+    walletForm.querySelector('[data-auth="wallet-back"]').hidden = stage !== 'code';
+    walletForm.querySelector('#walletSubmit').textContent = stage === 'code' ? (walletPending ? 'Verify and finish' : 'Verify and save') : 'Send verification code';
+    showAuthError(walletForm, '');
+  }
+  walletForm.addEventListener('change', (e) => { if (e.target.name === 'walletMethod') { syncWalletMethod(); showAuthError(walletForm, ''); } });
+  walletForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const m = walletMethod();
+    const el = walletForm.elements;
+    if (walletStage === 'details') {
+      if (m === 'bank') {
+        if (!el.walletBank.value) return showAuthError(walletForm, 'Choose your bank.', el.walletBank);
+        if (!/\p{L}.*\p{L}/u.test(el.walletHolder.value.trim())) return showAuthError(walletForm, 'Enter the name on the bank account.', el.walletHolder);
+      } else if (!validMobile(el.walletMobile.value)) {
+        return showAuthError(walletForm, `Enter the 11-digit mobile number of your ${STORE.METHOD_LABEL[m]} account, like 0917 123 4567.`, el.walletMobile);
+      }
+      walletForm.querySelector('#walletCodeMsg').textContent = m === 'bank'
+        ? `${el.walletBank.value} sent a 6-digit code to the mobile number registered to your account.`
+        : `${STORE.METHOD_LABEL[m]} sent a 6-digit code to ${maskMobile(el.walletMobile.value)}.`;
+      setWalletStage('code');
+      el.walletCode.value = '';
+      el.walletCode.focus();
+      return;
+    }
+    if (!/^\d{6}$/.test(el.walletCode.value)) return showAuthError(walletForm, 'Enter the 6-digit code.', el.walletCode);
+    const wallet = m === 'bank'
+      ? { method: 'bank', bank: el.walletBank.value, holder: el.walletHolder.value.trim(), account: null }
+      : { method: m, account: maskMobile(el.walletMobile.value) };
+    if (walletPending) {
+      STORE.saveWallet(walletPending.id, wallet);
+      finishDinerSignIn(walletPending, `Account ready. ${STORE.paidWith(wallet)} is linked.`);
+    } else {
+      const s = getSession();
+      if (s) STORE.saveWallet(s.id, wallet);
+      const next = authPending;
+      authPending = null;
+      closeAuth(true);
+      showToast(`Payment method updated to ${STORE.paidWith(wallet)}.`);
+      if (next) setTimeout(next, 220);
+    }
   });
+  walletForm.elements.walletCode.addEventListener('input', (e) => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6); });
 
   // Owner: business email only, then straight to the Partner Portal
   ownerForm.addEventListener('submit', (e) => {
@@ -2620,7 +2781,7 @@
         <p class="account-who"><strong>${escText(s.name || s.id)}</strong><span>${s.role === 'owner' && RESTAURANTS_BY_ID.get(s.restaurantId) ? escText(RESTAURANTS_BY_ID.get(s.restaurantId).name) : roleLabel}${s.name ? ` · ${escText(s.id)}` : ''}</span></p>
         ${s.role === 'owner'
           ? '<a href="owner.html" class="account-item">Partner Portal</a>'
-          : '<button type="button" class="account-item" data-account="bookings">My bookings</button><button type="button" class="account-item" data-account="vouchers">My vouchers</button>'}
+          : '<button type="button" class="account-item" data-account="bookings">My bookings</button><button type="button" class="account-item" data-account="vouchers">My vouchers</button><button type="button" class="account-item" data-account="wallet">Payment method</button>'}
         <button type="button" class="account-item account-signout" data-account="signout">Sign out</button>
       </div>`;
   }
@@ -2648,6 +2809,11 @@
     if (panelBtn) {
       setAccountMenu(false);
       openAccountPanel(panelBtn.dataset.account);
+      return;
+    }
+    if (e.target.closest('[data-account="wallet"]')) {
+      setAccountMenu(false);
+      openWalletStep(null);
       return;
     }
     if (e.target.closest('[data-account="signout"]')) {
@@ -2902,17 +3068,22 @@
           <h4>Payment</h4>
           <ul>
             <li><span>Reservation tax</span><span>${peso(pay.tax)}</span></li>
-            <li><span>Cancellation fee (${peso(pay.perGuest)} × ${b.guests})</span><span>${peso(pay.cancelFee)}</span></li>
+            ${pay.held ? '' : `<li><span>Cancellation fee (${peso(pay.perGuest)} × ${b.guests})</span><span>${peso(pay.cancelFee)}</span></li>`}
             ${pay.preorderDeposit ? `<li><span>Pre-order deposit (20%)</span><span>${peso(pay.preorderDeposit)}</span></li>` : ''}
           </ul>
           <p><span>Paid with ${escText(STORE.paidWith(pay))}</span><strong>${peso(pay.total)}</strong></p>
+          ${pay.held ? `<p class="acct-hold"><span>Cancellation fee (${peso(pay.perGuest)} × ${b.guests})<small>On hold on ${escText(pay.holdWith || STORE.paidWith(pay))}, not charged</small></span><strong>${peso(pay.cancelFee)}</strong></p>` : ''}
           <p class="acct-meta">Payment ref ${escText(pay.txn)} · Prototype, no money was moved</p>
         </div>
         <div class="acct-policy">
-          <p><strong>${peso(pay.credit)}</strong> is returned when you show up, taken off your bill${lines.length ? `, so you pay ${peso(Math.max(0, preorderTotal(lines) - pay.credit))} for your pre-order at the restaurant` : ''}. The reservation tax pays for TableFor's service and isn't returned. Your table is held for 15 minutes past your booking time.</p>`}
+          <p>${pay.held
+            ? `${pay.preorderDeposit ? `Your <strong>${peso(pay.preorderDeposit)}</strong> pre-order deposit is taken off your bill${lines.length ? `, so you pay ${peso(Math.max(0, preorderTotal(lines) - pay.preorderDeposit))} for your pre-order at the restaurant` : ''}. ` : ''}The cancellation fee is only charged if you cancel late or don't show up.`
+            : `<strong>${peso(pay.credit)}</strong> is returned when you show up, taken off your bill.`} The reservation tax pays for TableFor's service. Your table is held for 15 minutes past your booking time.</p>`}
           <p>${late
-            ? `<strong>Free cancellation has ended.</strong> If you cancel now, your ${peso(pay.cancelFee)} cancellation fee${pay.preorderDeposit ? ` and ${peso(pay.preorderDeposit)} pre-order deposit` : ''} ${pay.preorderDeposit ? 'are' : 'is'} forfeited to the restaurant${pay.tax ? ' and the reservation tax isn\'t refunded' : ''}.`
-            : `Free cancellation, with a full ${peso(pay.total)} refund, until <strong>${escText(minutesToLabel(freeUntil, freeUntil.getHours() * 60 + freeUntil.getMinutes()))}</strong>.`} <a href="about.html#policies">Booking policies</a></p>
+            ? (pay.held
+              ? `<strong>Free cancellation has ended.</strong> If you cancel now, your ${peso(pay.cancelFee)} cancellation fee will be charged to ${escText(pay.holdWith || STORE.paidWith(pay))} and paid to the restaurant${pay.preorderDeposit ? `, the ${peso(pay.preorderDeposit)} pre-order deposit goes to the restaurant` : ''}, and the reservation tax isn't refunded.`
+              : `<strong>Free cancellation has ended.</strong> If you cancel now, your ${peso(pay.cancelFee)} cancellation fee${pay.preorderDeposit ? ` and ${peso(pay.preorderDeposit)} pre-order deposit` : ''} ${pay.preorderDeposit ? 'are' : 'is'} forfeited to the restaurant${pay.tax ? ' and the reservation tax isn\'t refunded' : ''}.`)
+            : `Free cancellation, with a full ${peso(pay.total)} refund${pay.held ? ' and no cancellation fee' : ''}, until <strong>${escText(minutesToLabel(freeUntil, freeUntil.getHours() * 60 + freeUntil.getMinutes()))}</strong>.`} <a href="about.html#policies">Booking policies</a></p>
         </div>
 
         <div class="acct-detail-actions">
@@ -3105,7 +3276,14 @@
   // Booking needs a signed-in diner. Returns true when it's fine to carry on now.
   function requireDiner(then) {
     const s = getSession();
-    if (s && s.role === 'diner') return true;
+    if (s && s.role === 'diner') {
+      if (STORE.getWallet(s.id)) return true;
+      // Signed in before payment methods were required: link one first
+      authPending = then;
+      openWalletStep(null);
+      walletForm.querySelector('#walletReason').textContent = `Link a payment method to book. Your cancellation fee stays on hold and is only charged if you cancel less than ${STORE.FREE_CANCEL_MINUTES} minutes before or don't show up.`;
+      return false;
+    }
     openAuth({
       reason: s && s.role === 'owner'
         ? "You're signed in as a restaurant owner. Sign in with a diner account to book a table."
