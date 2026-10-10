@@ -64,10 +64,60 @@
     writeAll(all);
   }
 
+  /* ---------- What a diner pays online when booking ----------
+     · Reservation tax: pays for TableFor's booking service (the restaurant gets a share).
+       Set by each restaurant, minimum ₱100. Not credited to the bill.
+     · Cancellation fee: ₱250 per guest, returned (taken off the bill) when the diner shows up.
+     · Pre-order deposit: 20% of every dish pre-ordered, returned (taken off the bill) when the diner shows up.
+     Cancel 15+ minutes before (or if the restaurant declines/cancels) → everything is refunded.
+     Later than that, or a no-show → the cancellation fee and pre-order deposit are forfeited
+     to the restaurant, and the reservation tax isn't refunded. */
+  const FREE_CANCEL_MINUTES = 15;   // free cancellation up to 15 minutes before the booking
+  const GRACE_MINUTES = 15;         // table held 15 minutes past the booking time
+  const TAX_MIN = 100;
+  const TAX_DEFAULT = 100;
+  const CANCEL_FEE_PER_GUEST = 250;
+  const PREORDER_DEPOSIT_RATE = 0.2;
+  const peso = (n) => `₱${Number(n).toLocaleString('en-PH')}`;
+  const cleanTax = (n) => { const v = Math.round(Number(n)); return Number.isFinite(v) && v >= TAX_MIN ? v : TAX_DEFAULT; };
+  function charges(r, guests, preorderLines) {
+    const lines = preorderLines || [];
+    const tax = cleanTax(r && r.tax);
+    const party = Math.max(1, guests || 1);
+    const cancelFee = CANCEL_FEE_PER_GUEST * party;
+    // 20% of each dish line, rounded to the peso
+    const preorderDeposit = lines.reduce((n, l) => n + Math.round(l.qty * l.price * PREORDER_DEPOSIT_RATE), 0);
+    const preorderSubtotal = lines.reduce((n, l) => n + l.qty * l.price, 0);
+    return { tax, guests: party, perGuest: CANCEL_FEE_PER_GUEST, cancelFee, preorderSubtotal, preorderDeposit,
+      credit: cancelFee + preorderDeposit, total: tax + cancelFee + preorderDeposit };
+  }
+  // What was paid for a booking (bookings made before online payment had a flat ₱100 deposit)
+  function paymentOf(b) {
+    if (b && b.payment) return b.payment;
+    return { legacy: true, tax: 0, cancelFee: 100, preorderDeposit: 0, credit: 100, total: 100, method: null };
+  }
+  const METHOD_LABEL = { gcash: 'GCash', maya: 'Maya', bank: 'Online banking' };
+  function paidWith(p) {
+    if (!p || !p.method) return '';
+    return p.method === 'bank' ? `${p.bank || 'Online banking'}${p.account ? ` (${p.account})` : ''}` : `${METHOD_LABEL[p.method]}${p.account ? ` (${p.account})` : ''}`;
+  }
+  // One sentence about the refund if the diner cancels now
+  function refundNote(b, late) {
+    const p = paymentOf(b);
+    return late
+      ? `Free cancellation has ended, so your ${peso(p.cancelFee)} cancellation fee is forfeited to the restaurant and nothing is refunded.`
+      : `Your ${peso(p.total)} payment will be refunded in full${p.method ? ` to ${paidWith(p)}` : ''}.`;
+  }
+  // Is free cancellation over for this booking? (less than 15 minutes to go, or already started)
+  function isLateCancel(b, now) {
+    const start = startMs(b.date, b.minutes);
+    return start - (now || Date.now()) < FREE_CANCEL_MINUTES * 60000;
+  }
+
   /* ---------- Apply owner changes to the public listing ---------- */
   const ORIGINAL = new Map(RESTAURANTS.map((r) => [r.id, JSON.parse(JSON.stringify({
     desc: r.desc, phone: r.phone, hours: r.hours, closedDays: r.closedDays, minParty: r.minParty,
-    maxParty: r.maxParty, preorder: r.preorder, menu: r.menu, layout: r.layout,
+    maxParty: r.maxParty, preorder: r.preorder, menu: r.menu, layout: r.layout, tax: r.tax,
   }))]));
   function applyOverrides() {
     const all = readAll();
@@ -78,6 +128,7 @@
       r.paused = false;
       r.approval = 'auto';
       r.voucherOptOut = [];
+      r.tax = cleanTax(base.tax);
       if (!o) return;
       const p = o.profile || {};
       ['desc', 'phone', 'hours', 'closedDays', 'minParty', 'maxParty'].forEach((k) => { if (p[k] !== undefined) r[k] = p[k]; });
@@ -87,6 +138,7 @@
       r.paused = !!(o.settings && o.settings.paused);
       r.approval = (o.settings && o.settings.approval) || 'auto';
       r.voucherOptOut = o.voucherOptOut || [];
+      if (o.settings && o.settings.tax !== undefined) r.tax = cleanTax(o.settings.tax);
     });
   }
   applyOverrides();
@@ -204,6 +256,8 @@
 
   window.TableForStore = {
     TURN_MINUTES, ACTIVE,
+    TAX_MIN, TAX_DEFAULT, CANCEL_FEE_PER_GUEST, PREORDER_DEPOSIT_RATE, FREE_CANCEL_MINUTES, GRACE_MINUTES,
+    charges, paymentOf, paidWith, refundNote, isLateCancel, peso, METHOD_LABEL,
     ownerData, saveOwnerData, applyOverrides, ensureSeeded,
     reservationsFor, findReservation, updateReservation, addReservation,
     isBlocked, tableHolder, isTableFree,

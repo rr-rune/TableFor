@@ -2,7 +2,7 @@
 
 A restaurant discovery and table booking website for Angeles City, Clark, Mabalacat and San Fernando, Pampanga.
 
-Diners can browse a curated list of restaurants, check which places can take their date, time and group, and book a table with a ₱100 table deposit that's credited in full to the bill, so booking costs nothing extra. Restaurant owners get a Partner Portal to manage bookings, their menu, floor plan and booking rules.
+Diners can browse a curated list of restaurants, check which places can take their date, time and group, and book a table by paying online first (a simulated GCash, Maya or online-banking checkout; no real money moves). Restaurant owners get a Partner Portal to manage bookings, their menu, floor plan and booking rules.
 
 TableFor is a front-end mock-up built for coursework at Holy Angel University. There's no server or database. Everything is plain HTML, CSS and JavaScript, and the "backend" is the browser's own storage (localStorage).
 
@@ -35,11 +35,13 @@ Every page has the same header (Home, Explore, Partner, Blog, About Us) and foot
   - "View details" shows the full booking: reference, table, pre-order total and when free cancellation ends.
   - From the details you can call the restaurant, get directions, add the booking to your calendar (.ics) or cancel.
 - **Booking policies** (shown in full on About Us → Booking policies):
-  - ₱100 table deposit, credited in full to your bill when you dine.
-  - Free cancellation, with a full deposit refund, up to 2 hours before.
-  - Late cancellations and no-shows: the deposit goes to the restaurant.
+  - Paid online before the table is reserved: the reservation tax (set by the owner, minimum ₱100), a ₱250 cancellation fee per guest, and 20% of any pre-ordered dishes. A **?** button next to each charge explains it.
+  - The reservation tax pays for TableFor's booking service; the restaurant receives a share of it. It isn't taken off the bill.
+  - The cancellation fee and pre-order deposit are returned when you show up, taken off the bill.
+  - Free cancellation, with a full refund, up to 15 minutes before.
+  - Late cancellations (less than 15 minutes before, or once the booking has started) and no-shows: the cancellation fee and pre-order deposit are forfeited to the restaurant, and the reservation tax isn't refunded. A late cancellation shows a warning pop-up the diner has to confirm.
   - Tables are held for 15 minutes past the booking time.
-  - If the restaurant declines or cancels, the deposit is refunded in full.
+  - If the restaurant declines or cancels, the payment is refunded in full.
   - One voucher per booking, and each voucher works once.
 - **Calls and directions:** Call buttons use each restaurant's real phone number. Directions open Google Maps.
 

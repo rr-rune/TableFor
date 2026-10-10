@@ -335,7 +335,14 @@
         ${x.occasion ? `<div><dt>Occasion</dt><dd>${esc(x.occasion)}</dd></div>` : ''}
         ${x.notes ? `<div><dt>Requests</dt><dd>${esc(x.notes)}</dd></div>` : ''}
         ${x.voucher ? `<div><dt>Voucher</dt><dd>${esc(x.voucher)}</dd></div>` : ''}
-        ${pre.length ? `<div><dt>Pre-order</dt><dd><ul class="op-mini-list">${pre.map((l) => `<li>${l.qty}× ${esc(l.name)} <span class="op-muted">${peso(l.qty * l.price)}</span></li>`).join('')}</ul><strong>${peso(pre.reduce((n, l) => n + l.qty * l.price, 0))}</strong> <span class="op-muted">paid at the restaurant</span></dd></div>` : ''}
+        ${pre.length ? `<div><dt>Pre-order</dt><dd><ul class="op-mini-list">${pre.map((l) => `<li>${l.qty}× ${esc(l.name)} <span class="op-muted">${peso(l.qty * l.price)}</span></li>`).join('')}</ul><strong>${peso(pre.reduce((n, l) => n + l.qty * l.price, 0))}</strong> <span class="op-muted">total</span></dd></div>` : ''}
+        ${x.payment ? `<div><dt>Paid online</dt><dd><strong>${peso(x.payment.total)}</strong> <span class="op-muted">via ${esc(S.paidWith(x.payment))}</span>
+          <ul class="op-mini-list">
+            <li>Reservation tax <span class="op-muted">${peso(x.payment.tax)}</span></li>
+            <li>Cancellation fee <span class="op-muted">${peso(x.payment.perGuest)} × ${x.guests} = ${peso(x.payment.cancelFee)}</span></li>
+            ${x.payment.preorderDeposit ? `<li>Pre-order deposit (20%) <span class="op-muted">${peso(x.payment.preorderDeposit)}</span></li>` : ''}
+          </ul>
+          <span class="op-muted">${x.lateCancel ? `Cancelled late by the diner: ${peso(x.forfeited)} forfeited to you.` : `Take ${peso(x.payment.credit)} off the bill when they dine.`} Ref ${esc(x.payment.txn)}</span></dd></div>` : ''}
       </dl>
       ${editableTable ? `
         <label class="modal-field">
@@ -384,7 +391,7 @@
       // A second, explicit step before cancelling someone's booking
       box.hidden = false;
       box.innerHTML = `
-        <p>${act === 'decline' ? 'Decline this booking request?' : 'Cancel this confirmed booking?'} The diner is told straight away and their ₱100 deposit is refunded in full.</p>
+        <p>${act === 'decline' ? 'Decline this booking request?' : 'Cancel this confirmed booking?'} The diner is told straight away and their ${peso(S.paymentOf(S.findReservation(rid, ref)).total)} payment is refunded in full.</p>
         <div class="op-actions">
           <button type="button" class="btn btn-dark btn-sm" data-act="${act}-yes">${act === 'decline' ? 'Yes, decline' : 'Yes, cancel it'}</button>
           <button type="button" class="btn btn-outline-dark btn-sm" data-act="keep">Keep it</button>
@@ -818,6 +825,18 @@
         <button type="button" class="op-switch" role="switch" aria-checked="${!R.paused}" data-op="toggle-paused"><span></span><span class="visually-hidden">Take online bookings</span></button>
       </section>
 
+      <form class="op-panel op-form" id="opTax" novalidate>
+        <h2>Reservation tax</h2>
+        <p class="op-muted">The amount every diner pays online to reserve a table with you, on top of the ${peso(S.CANCEL_FEE_PER_GUEST)}-per-guest cancellation fee and the 20% pre-order deposit. It pays for TableFor's booking service, and you receive a share of it. The minimum is ${peso(S.TAX_MIN)}. Unlike the cancellation fee and pre-order deposit, it isn't taken off the diner's bill. It's refunded only when a booking is cancelled at least ${S.FREE_CANCEL_MINUTES} minutes ahead, or when you decline or cancel it.</p>
+        <div class="op-tax-row">
+          <label class="modal-field op-tax-field"><span>Amount per booking</span>
+            <span class="op-peso-input"><span aria-hidden="true">₱</span><input type="number" name="tax" min="${S.TAX_MIN}" step="10" inputmode="numeric" value="${R.tax}" aria-describedby="opTaxPreview"></span></label>
+          <button type="submit" class="btn btn-amber btn-sm">Save tax</button>
+        </div>
+        <p class="auth-error" role="alert" hidden></p>
+        <p class="op-hint" id="opTaxPreview">${taxPreview(R.tax)}</p>
+      </form>
+
       <section class="op-panel">
         <h2>Share your booking link</h2>
         <p class="op-muted">Add this link to your website, Facebook or Instagram bio, and your Google Business Profile, so guests can book you in a tap.</p>
@@ -830,10 +849,10 @@
       <section class="op-panel">
         <h2>TableFor policies</h2>
         <ul class="op-policy">
-          <li><strong>₱100 table deposit</strong><span>Paid by the diner when they book and credited to their bill when they dine.</span></li>
-          <li><strong>Free cancellation up to 2 hours before</strong><span>The diner gets the full deposit back. After that, or on a no-show, the deposit is paid to you.</span></li>
+          <li><strong>Paid online before the table is reserved</strong><span>Diners pay the reservation tax, a ${peso(S.CANCEL_FEE_PER_GUEST)} cancellation fee per guest and 20% of any pre-order with GCash, Maya or online banking. The cancellation fee and pre-order deposit are returned to them when they show up, taken off their bill.</span></li>
+          <li><strong>Free cancellation up to ${S.FREE_CANCEL_MINUTES} minutes before</strong><span>The diner gets the whole payment back. After that, or on a no-show, the cancellation fee and pre-order deposit are forfeited to you.</span></li>
           <li><strong>15-minute grace period</strong><span>Hold the table for 15 minutes after the booking time, then you can mark the guest as a no-show.</span></li>
-          <li><strong>Your cancellations</strong><span>If you decline or cancel a booking, the diner's deposit is refunded in full.</span></li>
+          <li><strong>Your cancellations</strong><span>If you decline or cancel a booking, the diner's payment is refunded in full.</span></li>
           <li><strong>Tables held for 90 minutes</strong><span>A table can't be booked again within 90 minutes of another booking.</span></li>
           <li><strong>Up to 20 guests per booking</strong><span>Set your own limit in Profile and hours.</span></li>
         </ul>
@@ -854,6 +873,25 @@
           </div>
         </div>
       </section>`;
+  }
+
+  function taxPreview(tax) {
+    const c = S.charges({ tax }, 2, []);
+    return `Example: a table for 2 with no pre-order pays ${peso(c.total)} (${peso(c.tax)} tax + ${peso(c.cancelFee)} cancellation fee).`;
+  }
+  function saveTax(form) {
+    const err = form.querySelector('.auth-error');
+    const field = form.elements.tax;
+    const v = Number(field.value);
+    err.hidden = true;
+    if (!field.value.trim() || !Number.isFinite(v) || v !== Math.round(v)) { err.textContent = 'Enter the tax as a whole peso amount.'; err.hidden = false; field.focus(); return; }
+    if (v < S.TAX_MIN) { err.textContent = `The reservation tax can't be lower than ${peso(S.TAX_MIN)}.`; err.hidden = false; field.focus(); return; }
+    if (v > 5000) { err.textContent = 'That looks too high. Keep it at ₱5,000 or less.'; err.hidden = false; field.focus(); return; }
+    const d = S.ownerData(rid);
+    d.settings = { ...d.settings, tax: v };
+    S.saveOwnerData(rid, d);
+    toast(`Reservation tax set to ${peso(v)}. New bookings pay this amount.`);
+    render();
   }
 
   function bookingLink() {
@@ -1101,6 +1139,9 @@
       const s = $('opSearch');
       s.focus();
       s.setSelectionRange(pos, pos);
+    } else if (e.target.name === 'tax' && e.target.closest('#opTax')) {
+      const v = Number(e.target.value);
+      $('opTaxPreview').textContent = v >= S.TAX_MIN ? taxPreview(Math.round(v)) : `The minimum is ${peso(S.TAX_MIN)}.`;
     } else if (e.target.closest('#opMenuForm')) {
       if (!state.menuDirty) {
         state.menuDirty = true;
@@ -1113,6 +1154,7 @@
     e.preventDefault();
     if (e.target.id === 'opMenuForm') saveMenu(e.target);
     if (e.target.id === 'opProfile') saveProfile(e.target);
+    if (e.target.id === 'opTax') saveTax(e.target);
   });
   window.addEventListener('beforeunload', (e) => {
     if (state.menuDirty) { e.preventDefault(); e.returnValue = ''; }

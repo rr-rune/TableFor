@@ -2304,3 +2304,170 @@ textarea:not([readonly]), [contenteditable="true"] { caret-color: var(--ink); }
 .policy-card p { font-size: 0.9rem; color: var(--text-muted); }
 .modal-fee a, .acct-policy a { color: var(--gold-text); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; white-space: nowrap; }
 .modal-fee a:hover, .acct-policy a:hover { color: var(--ink); }
+
+/* ============================================================
+   ONLINE PAYMENT (reservation tax + cancellation fee + pre-order deposit)
+   ============================================================ */
+/* Price summary in the booking form */
+.modal-fee.modal-charges {
+  display: grid; gap: 4px; padding: 12px 14px; border: 1px solid var(--rule);
+  border-radius: 12px; background: var(--cream); color: var(--ink); font-size: 0.86rem;
+}
+.charges-title { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold-text); margin-bottom: 2px; }
+.charges-row { display: flex; justify-content: space-between; gap: 12px; }
+.charges-row > span:last-child { font-weight: 600; white-space: nowrap; }
+.charges-total { border-top: 1px solid var(--rule); margin-top: 4px; padding-top: 8px; font-weight: 700; font-size: 0.95rem; }
+.charges-note { font-size: 0.78rem; color: var(--text-muted); margin-top: 4px; }
+
+/* Payment view */
+.modal-pay-view .eyebrow { margin-top: 4px; }
+.pay-back {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 0.84rem; font-weight: 600;
+  color: var(--gold-text); margin-bottom: 10px; padding: 4px 0;
+}
+.pay-back:hover { color: var(--ink); }
+.pay-back[hidden] { display: none; }
+.modal-pay-view h3:focus { outline: none; }
+.pay-what { color: var(--text-muted); font-size: 0.88rem; margin-bottom: 16px; }
+.pay-step[hidden] { display: none; }
+.pay-breakdown { border: 1px solid var(--rule); border-radius: 12px; overflow: hidden; margin: 0 0 18px; }
+.pay-breakdown > div { display: flex; justify-content: space-between; gap: 14px; padding: 10px 14px; font-size: 0.9rem; }
+.pay-breakdown > div + div { border-top: 1px solid var(--rule); }
+.pay-breakdown dt small { display: block; font-size: 0.76rem; color: var(--text-muted); font-weight: 500; }
+.pay-breakdown dd { margin: 0; font-weight: 600; white-space: nowrap; }
+.pay-breakdown .is-total { background: var(--cream); font-weight: 700; font-size: 1rem; }
+.pay-credit { font-size: 0.78rem; color: var(--text-muted); padding: 10px 14px; border-top: 1px solid var(--rule); background: var(--white); }
+
+.pay-methods { border: 0; padding: 0; margin: 0 0 14px; display: grid; gap: 8px; }
+.pay-methods legend {
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--text-muted); margin-bottom: 8px; padding: 0;
+}
+.pay-method {
+  display: flex; align-items: center; gap: 12px; padding: 11px 14px; cursor: pointer;
+  border: 1px solid var(--line-control); border-radius: 12px; background: var(--white);
+  transition: border-color 0.15s var(--ease), background 0.15s var(--ease);
+}
+.pay-method:hover { border-color: var(--gold); }
+.pay-method.is-selected { border-color: var(--ink); background: var(--cream); box-shadow: inset 0 0 0 1px var(--ink); }
+.pay-method input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.pay-method:has(input:focus-visible) { outline: 2px solid var(--gold); outline-offset: 2px; }
+.pay-method strong { display: block; font-size: 0.95rem; }
+.pay-method small { display: block; font-size: 0.78rem; color: var(--text-muted); }
+.pay-badge {
+  flex: none; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 1.05rem; color: var(--white); background: var(--ink-soft);
+}
+.pay-badge svg { width: 20px; height: 20px; }
+.pay-badge.is-gcash { background: #1F5FD9; }
+.pay-badge.is-maya { background: #13A36B; }
+.pay-badge.is-bank { background: var(--ink-soft); }
+.pay-fields[hidden] { display: none; }
+.pay-btn { width: 100%; margin-top: 4px; }
+.pay-demo {
+  font-size: 0.78rem; color: #7A5A12; background: #FFF6DE; border-radius: 10px;
+  padding: 9px 12px; margin: 12px 0 0;
+}
+
+.pay-provider { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--rule); border-radius: 12px; margin-bottom: 12px; }
+.pay-provider strong { display: block; }
+.pay-provider span:not(.pay-badge) { font-size: 0.85rem; color: var(--text-muted); }
+.pay-otp-msg { font-size: 0.9rem; margin-bottom: 12px; }
+.modal-field input.pay-otp-input { font-size: 1.4rem; letter-spacing: 0.5em; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pay-otp-actions { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; }
+.pay-otp-actions .x-text-btn:disabled { color: var(--text-muted); cursor: default; }
+
+.pay-processing { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; padding: 34px 0 30px; }
+.pay-processing span:last-child { font-size: 0.86rem; color: var(--text-muted); }
+.pay-spinner {
+  width: 42px; height: 42px; border-radius: 50%; margin-bottom: 10px;
+  border: 4px solid var(--paper); border-top-color: var(--amber); animation: pay-spin 0.8s linear infinite;
+}
+@keyframes pay-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .pay-spinner { animation-duration: 2.4s; } }
+
+/* Payment summary in My bookings */
+.acct-pay { margin-top: 18px; padding: 14px 16px; border-radius: var(--radius-md); background: var(--cream); border: 1px solid var(--rule); }
+.acct-pay h4 { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold-text); margin: 0 0 8px; }
+.acct-pay li, .acct-pay > p:not(.acct-meta) { display: flex; justify-content: space-between; gap: 12px; font-size: 0.88rem; padding: 3px 0; }
+.acct-pay > p:not(.acct-meta) { margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--rule); }
+.acct-pay .acct-meta { font-size: 0.78rem; margin-top: 4px; }
+
+/* Partner Portal: reservation tax */
+.op-tax-row { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+.op-tax-row .modal-field { margin-bottom: 0; }
+.modal-field .op-peso-input, .op-peso-input { margin: 0; display: flex; text-transform: none; letter-spacing: 0; align-items: center; border: 1px solid var(--line-control); border-radius: 10px; background: var(--cream); padding-left: 14px; }
+.modal-field .op-peso-input > span { display: inline;  margin: 0; font-size: 0.95rem; font-weight: 600; color: var(--ink); text-transform: none; letter-spacing: 0; }
+.op-peso-input:focus-within { outline: 2px solid var(--gold); outline-offset: 1px; }
+.modal-field .op-peso-input input { border: 0; background: transparent; width: 140px; padding-left: 6px; }
+.modal-field .op-peso-input input:focus { outline: none; }
+#opTax .auth-error { margin-top: 10px; }
+#opTax .op-hint { margin-top: 10px; }
+
+/* ---------- "?" explanations next to each charge ---------- */
+.charges-label { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; }
+.charges-label small { font-size: 0.76rem; color: var(--text-muted); }
+.charge-help {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--line-control);
+  background: var(--white); color: var(--gold-text); font-size: 0.72rem; font-weight: 700; line-height: 1;
+  cursor: pointer; vertical-align: middle;
+}
+.charge-help:hover { border-color: var(--gold); background: #FFF8E7; }
+.charge-help[aria-expanded="true"] { background: var(--ink); border-color: var(--ink); color: var(--white); }
+.charge-help:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.charge-help-text {
+  display: block; font-size: 0.8rem; line-height: 1.5; color: var(--ink);
+  background: var(--white); border: 1px solid var(--rule); border-left: 3px solid var(--gold);
+  border-radius: 8px; padding: 8px 10px; margin: 2px 0 6px;
+}
+.charge-help-text[hidden] { display: none; }
+.pay-breakdown dt { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; }
+.pay-breakdown dt small { flex-basis: 100%; }
+.pay-breakdown .charge-help-text { margin: 0; border-radius: 0; border-width: 1px 0 0 3px; padding: 10px 14px; }
+
+/* ---------- Late cancellation warning ---------- */
+.lc-overlay {
+  position: fixed; inset: 0; z-index: 3000; background: rgba(29, 28, 24, 0.6);
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+  opacity: 0; transition: opacity 0.2s var(--ease);
+}
+.lc-overlay[hidden] { display: none; }
+.lc-overlay.is-open { opacity: 1; }
+.lc-dialog {
+  background: var(--white); border-radius: var(--radius-lg); width: 100%; max-width: 440px;
+  max-height: 92vh; max-height: 92dvh; overflow-y: auto; padding: 26px 24px 22px;
+  box-shadow: var(--shadow-lift); text-align: center;
+}
+.lc-icon {
+  width: 52px; height: 52px; border-radius: 50%; margin: 0 auto 12px;
+  display: flex; align-items: center; justify-content: center;
+  background: #FCEBE8; color: #B8392A; font-size: 1.6rem; font-weight: 800;
+}
+.lc-dialog h2 { font-size: 1.35rem; margin-bottom: 8px; }
+.lc-dialog > p { color: var(--text-muted); font-size: 0.9rem; }
+.lc-forfeit {
+  margin: 16px 0 10px; padding: 14px 16px; border-radius: 14px;
+  background: #FCEBE8; border: 1.5px solid #E7A79D; color: #8E2A1E; display: grid; gap: 2px;
+}
+.lc-forfeit-label { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.lc-forfeit strong { font-size: 1.9rem; line-height: 1.2; color: #B8392A; }
+.lc-forfeit-sub { font-size: 0.84rem; }
+.lc-lines { text-align: left; font-size: 0.86rem; margin: 0 0 8px; }
+.lc-lines[hidden] { display: none; }
+.lc-lines li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 2px; border-bottom: 1px solid var(--rule); }
+.lc-lines li span:last-child { font-weight: 600; white-space: nowrap; }
+.lc-back { margin: 8px 0 14px !important; color: var(--ink) !important; font-size: 0.95rem !important; }
+.lc-ack {
+  display: flex; align-items: flex-start; gap: 10px; text-align: left; cursor: pointer;
+  font-size: 0.86rem; background: var(--cream); border: 1px solid var(--rule); border-radius: 10px; padding: 10px 12px; margin-bottom: 14px;
+}
+.lc-ack input { width: 18px; height: 18px; margin-top: 1px; flex: none; accent-color: #B8392A; }
+.lc-actions { display: grid; gap: 8px; }
+.lc-actions .btn { width: 100%; }
+.lc-confirm { background: #B8392A; color: var(--white); border: 0; }
+.lc-confirm:hover:not(:disabled) { background: #9A2E22; }
+.lc-confirm:disabled { background: var(--paper); color: var(--text-muted); cursor: not-allowed; }
+.pay-breakdown > div:not(:first-child) { border-top: 1px solid var(--rule); }
+.policy-card p + p { margin-top: 8px; }
+.policy-card p strong { color: var(--ink); }

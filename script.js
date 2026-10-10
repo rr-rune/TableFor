@@ -1019,7 +1019,7 @@
   const BOOKING_FEE = window.TABLEFOR_BOOKING_FEE || 100;
   const BOOKINGS_KEY = 'tablefor_bookings';
   const BOOKING_WINDOW_DAYS = 60;       // same booking window as the date picker
-  const FREE_CANCEL_MINUTES = 120;      // free cancellation up to 2 hours before
+  const FREE_CANCEL_MINUTES = window.TableForStore.FREE_CANCEL_MINUTES; // free cancellation up to 15 minutes before
   const PARTY_CAP = 20;                 // matches the search bar's guest limit
 
   const modalOverlay = byId('restaurantModalOverlay');
@@ -1076,7 +1076,8 @@
   const bookingStatus = (b) => b.status || 'confirmed';
   function upcomingBookings() {
     const now = Date.now();
-    return getBookings().filter((b) => ACTIVE_STATUSES.includes(bookingStatus(b)) && bookingStart(b).getTime() > now)
+    const grace = window.TableForStore.GRACE_MINUTES * 60000; // an ongoing booking stays listed through the grace period
+    return getBookings().filter((b) => ACTIVE_STATUSES.includes(bookingStatus(b)) && bookingStart(b).getTime() + grace > now)
       .sort((a, b) => bookingStart(a) - bookingStart(b));
   }
   // Future bookings the restaurant declined or cancelled, until the diner dismisses them
@@ -1086,8 +1087,106 @@
       && bookingStart(b).getTime() > now);
   }
   function cancelBooking(ref) {
-    saveBookings(getBookings().filter((b) => b.ref !== ref));
+    const list = getBookings();
+    const b = list.find((x) => x.ref === ref);
+    if (!b) return;
+    if (window.TableForStore.isLateCancel(b)) {
+      // After free cancellation: the restaurant keeps the cancellation fee and pre-order deposit
+      const p = window.TableForStore.paymentOf(b);
+      saveBookings(list.map((x) => (x.ref === ref ? { ...x, status: 'cancelled', cancelledBy: 'diner', cancelledAt: Date.now(), lateCancel: true,
+        forfeited: (p.cancelFee || 0) + (p.preorderDeposit || 0), refunded: 0 } : x)));
+    } else {
+      saveBookings(list.filter((x) => x.ref !== ref));
+    }
   }
+
+  /* -- Warning before cancelling once free cancellation is over -- */
+  const lateOverlay = document.createElement('div');
+  lateOverlay.className = 'lc-overlay';
+  lateOverlay.hidden = true;
+  lateOverlay.innerHTML = `
+    <div class="lc-dialog" role="alertdialog" aria-modal="true" aria-labelledby="lcTitle" aria-describedby="lcDesc">
+      <div class="lc-icon" aria-hidden="true">!</div>
+      <h2 id="lcTitle">Free cancellation is over</h2>
+      <p id="lcDesc"></p>
+      <div class="lc-forfeit">
+        <span class="lc-forfeit-label">Forfeited to <span id="lcRest"></span></span>
+        <strong id="lcFee"></strong>
+        <span class="lc-forfeit-sub" id="lcFeeSub"></span>
+      </div>
+      <ul class="lc-lines" id="lcLines"></ul>
+      <p class="lc-back">You get back <strong>₱0</strong></p>
+      <label class="lc-ack"><input type="checkbox" id="lcAck"> <span>I understand that my cancellation fee goes to the restaurant and I won't get this money back.</span></label>
+      <div class="lc-actions">
+        <button type="button" class="btn btn-dark" data-lc="keep">Keep my booking</button>
+        <button type="button" class="btn lc-confirm" data-lc="confirm" disabled>Cancel anyway</button>
+      </div>
+    </div>`;
+  document.body.appendChild(lateOverlay);
+  let lateRef = null;
+  let lateDone = null;
+  let lateReturn = null;
+  function openLateCancel(ref, onDone) {
+    const b = getBookings().find((x) => x.ref === ref);
+    if (!b) return;
+    const S = window.TableForStore;
+    const p = S.paymentOf(b);
+    const start = bookingStart(b);
+    const started = start.getTime() <= Date.now();
+    const freeUntil = new Date(start.getTime() - FREE_CANCEL_MINUTES * 60000);
+    lateRef = ref;
+    lateDone = onDone || null;
+    lateReturn = document.activeElement;
+    const q = (sel) => lateOverlay.querySelector(sel);
+    q('#lcDesc').innerHTML = started
+      ? `Your booking at <strong>${escText(b.name)}</strong> started at ${escText(formatTime(b.minutes))}. Free cancellation ended at ${escText(formatTime(freeUntil.getHours() * 60 + freeUntil.getMinutes()))}, ${FREE_CANCEL_MINUTES} minutes before your booking.`
+      : `Your booking at <strong>${escText(b.name)}</strong> is at ${escText(formatTime(b.minutes))}. Free cancellation ended at ${escText(formatTime(freeUntil.getHours() * 60 + freeUntil.getMinutes()))}, ${FREE_CANCEL_MINUTES} minutes before your booking.`;
+    q('#lcRest').textContent = b.name;
+    q('#lcFee').textContent = S.peso(p.cancelFee);
+    q('#lcFeeSub').textContent = p.legacy ? 'Table deposit' : `Cancellation fee (${S.peso(p.perGuest)} × ${b.guests} ${b.guests === 1 ? 'guest' : 'guests'})`;
+    q('#lcLines').innerHTML = [
+      p.preorderDeposit ? `<li><span>Pre-order deposit, also forfeited to the restaurant</span><span>${S.peso(p.preorderDeposit)}</span></li>` : '',
+      p.tax ? `<li><span>Reservation tax, not refunded</span><span>${S.peso(p.tax)}</span></li>` : '',
+    ].join('');
+    q('#lcLines').hidden = !q('#lcLines').innerHTML;
+    q('#lcAck').checked = false;
+    q('[data-lc="confirm"]').disabled = true;
+    q('[data-lc="confirm"]').textContent = `Cancel and forfeit ${S.peso(p.total)}`;
+    lateOverlay.hidden = false;
+    requestAnimationFrame(() => { lateOverlay.classList.add('is-open'); q('[data-lc="keep"]').focus(); });
+  }
+  function closeLateCancel() {
+    if (lateOverlay.hidden) return;
+    lateOverlay.classList.remove('is-open');
+    lateOverlay.hidden = true;
+    lateRef = null;
+    if (lateReturn && lateReturn.isConnected) lateReturn.focus({ preventScroll: true });
+  }
+  lateOverlay.addEventListener('change', (e) => {
+    if (e.target.id === 'lcAck') lateOverlay.querySelector('[data-lc="confirm"]').disabled = !e.target.checked;
+  });
+  lateOverlay.addEventListener('click', (e) => {
+    if (e.target === lateOverlay) { closeLateCancel(); return; }
+    const btn = e.target.closest('[data-lc]');
+    if (!btn) return;
+    if (btn.dataset.lc === 'keep') { closeLateCancel(); return; }
+    if (btn.dataset.lc === 'confirm' && !btn.disabled) {
+      const ref = lateRef;
+      const done = lateDone;
+      lateReturn = null;
+      closeLateCancel();
+      cancelBooking(ref);
+      if (done) done(ref);
+    }
+  });
+  lateOverlay.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.stopPropagation(); closeLateCancel(); return; }
+    if (e.key !== 'Tab') return;
+    const f = [...lateOverlay.querySelectorAll('button, input')].filter((el) => !el.disabled);
+    if (!f.length) return;
+    if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
+    else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
+  });
   function makeRef() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let out = 'TF-';
@@ -1261,6 +1360,7 @@
   }
   function updatePreorderBlock() {
     const r = modalRestaurant;
+    updateCharges();
     preorderBlock.hidden = !(r && r.preorder && r.menu.length);
     if (preorderBlock.hidden) return;
     const text = preorderSummary(preorderLines(r));
@@ -1383,7 +1483,7 @@
   }
 
   function showModalView(view) {
-    [modalBookingView, byId('modalMenuView'), modalConfirmView].forEach((v) => { v.hidden = v !== view; });
+    [modalBookingView, byId('modalMenuView'), document.getElementById('modalPayView'), modalConfirmView].forEach((v) => { if (v) v.hidden = v !== view; });
     modalEl.querySelector('.modal-body').scrollTop = 0;
   }
 
@@ -1610,6 +1710,7 @@
   function setParty(n) {
     modalParty.value = n ? `${n} ${partyWord(n)}` : '';
     checkParty();
+    updateCharges();
     // Arrows show the limits: grey out at the restaurant's smallest and largest party
     byId('partyUp', 'button').disabled = n >= partyMax;
     byId('partyDown', 'button').disabled = !n || n <= partyMin;
@@ -1805,6 +1906,290 @@
       preorder: preorderLines(r),
       createdAt: Date.now(),
     };
+    // Nothing is saved yet: the table is only reserved once the payment goes through
+    openPayment(booking, r);
+  });
+
+  /* -- What the diner pays now (reservation tax + cancellation fee + pre-order deposit) -- */
+  const STORE = window.TableForStore;
+  const modalFee = modalBookingView.querySelector('.modal-fee') || document.createElement('p');
+  function currentCharges() {
+    const r = modalRestaurant;
+    return r ? STORE.charges(r, getParty(), preorderLines(r)) : null;
+  }
+  // What each charge is, shown by the "?" buttons
+  const CHARGE_HELP = {
+    tax: (c) => `The reservation tax pays for TableFor's booking service: finding you a table, holding it, and handling your online payment and booking details. Each restaurant sets its own amount (at least ${peso(STORE.TAX_MIN)}), and the restaurant receives a share of it. It isn't taken off your bill. It's refunded only if you cancel at least ${STORE.FREE_CANCEL_MINUTES} minutes before or the restaurant cancels.`,
+    cancel: (c) => `${peso(c.perGuest)} per guest, held to protect the restaurant from no-shows. It's returned to you when you show up: the full ${peso(c.cancelFee)} is taken off your bill. If you cancel less than ${STORE.FREE_CANCEL_MINUTES} minutes before your booking, or don't show up, it's forfeited to the restaurant.`,
+    preorder: (c) => `20% of the dishes you pre-ordered, so the kitchen can prepare them for you. It's returned to you when you show up: the ${peso(c.preorderDeposit)} is taken off your bill. If you cancel less than ${STORE.FREE_CANCEL_MINUTES} minutes before or don't show up, it's forfeited to the restaurant.`,
+  };
+  let helpSeq = 0;
+  function chargeLine(key, label, amount, c, sub) {
+    const id = `chargeHelp${++helpSeq}`;
+    return `<span class="charges-row"><span class="charges-label">${label}${sub ? ` <small>${sub}</small>` : ''}
+        <button type="button" class="charge-help" aria-expanded="false" aria-controls="${id}" aria-label="What is the ${label.toLowerCase()}?">?</button></span><span>${peso(amount)}</span></span>
+      <span class="charge-help-text" id="${id}" hidden>${CHARGE_HELP[key](c)}</span>`;
+  }
+  // Toggle a "?" explanation (one open at a time per summary)
+  function toggleChargeHelp(btn) {
+    const box = btn.closest('.modal-charges, .pay-breakdown');
+    const open = btn.getAttribute('aria-expanded') !== 'true';
+    box.querySelectorAll('.charge-help').forEach((b) => {
+      b.setAttribute('aria-expanded', 'false');
+      const t = document.getElementById(b.getAttribute('aria-controls'));
+      if (t) t.hidden = true;
+    });
+    if (open) {
+      btn.setAttribute('aria-expanded', 'true');
+      document.getElementById(btn.getAttribute('aria-controls')).hidden = false;
+    }
+  }
+  modalEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.charge-help');
+    if (btn) { e.preventDefault(); toggleChargeHelp(btn); }
+  });
+  function updateCharges() {
+    const c = currentCharges();
+    if (!c) return;
+    modalFee.classList.add('modal-charges');
+    modalFee.innerHTML = `
+      <span class="charges-title">Due now to reserve</span>
+      ${chargeLine('tax', 'Reservation tax', c.tax, c)}
+      ${chargeLine('cancel', 'Cancellation fee', c.cancelFee, c, `${peso(c.perGuest)} × ${c.guests} ${c.guests === 1 ? 'guest' : 'guests'}`)}
+      ${c.preorderDeposit ? chargeLine('preorder', 'Pre-order deposit', c.preorderDeposit, c, `20% of ${peso(c.preorderSubtotal)}`) : ''}
+      <span class="charges-row charges-total"><span>Total</span><span>${peso(c.total)}</span></span>
+      <span class="charges-note">Pay online with GCash, Maya or online banking. The ${peso(c.credit)} in fees and deposits is returned when you show up, taken off your bill. Free cancellation up to ${STORE.FREE_CANCEL_MINUTES} minutes before your booking. <a href="about.html#policies">Booking policies</a></span>`;
+    modalSubmit.textContent = `Continue to payment · ${peso(c.total)}`;
+  }
+
+  /* -- Payment step (a working prototype: no real money moves) -- */
+  const PAY_BANKS = ['BDO Unibank', 'BPI', 'Metrobank', 'Landbank', 'UnionBank', 'Security Bank', 'RCBC', 'PNB'];
+  const payView = document.createElement('div');
+  payView.className = 'modal-view modal-pay-view';
+  payView.id = 'modalPayView';
+  payView.hidden = true;
+  payView.innerHTML = `
+    <button type="button" class="pay-back" data-pay="back"><span aria-hidden="true">&larr;</span> Back to booking</button>
+    <p class="eyebrow"><span class="dot"></span>Payment</p>
+    <h3 id="payTitle" tabindex="-1">Pay to reserve your table</h3>
+    <p class="pay-what" id="payWhat"></p>
+
+    <form class="pay-step" data-step="method" novalidate>
+      <dl class="pay-breakdown" id="payBreakdown"></dl>
+      <fieldset class="pay-methods">
+        <legend>Pay with</legend>
+        <label class="pay-method"><input type="radio" name="payMethod" value="gcash" checked>
+          <span class="pay-badge is-gcash" aria-hidden="true">G</span><span><strong>GCash</strong><small>E-wallet</small></span></label>
+        <label class="pay-method"><input type="radio" name="payMethod" value="maya">
+          <span class="pay-badge is-maya" aria-hidden="true">M</span><span><strong>Maya</strong><small>E-wallet</small></span></label>
+        <label class="pay-method"><input type="radio" name="payMethod" value="bank">
+          <span class="pay-badge is-bank" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10h18L12 4 3 10Z"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/></svg></span><span><strong>Online banking</strong><small>Debit from your bank account</small></span></label>
+      </fieldset>
+      <div class="pay-fields" data-for="wallet">
+        <label class="modal-field">
+          <span id="payMobileLabel">GCash mobile number</span>
+          <input type="tel" id="payMobile" inputmode="tel" autocomplete="tel" placeholder="0917 123 4567" maxlength="16">
+        </label>
+      </div>
+      <div class="pay-fields" data-for="bank" hidden>
+        <label class="modal-field">
+          <span>Bank</span>
+          <select id="payBank"><option value="">Choose your bank</option>${PAY_BANKS.map((b) => `<option>${b}</option>`).join('')}</select>
+        </label>
+        <label class="modal-field">
+          <span>Account holder name</span>
+          <input type="text" id="payBankName" autocomplete="name" maxlength="60">
+        </label>
+      </div>
+      <p class="modal-warning is-error" id="payError" role="alert" hidden></p>
+      <button type="submit" class="btn btn-amber pay-btn" id="payStartBtn">Pay</button>
+      <p class="pay-demo"><strong>Prototype:</strong> no money is moved. Your table is only reserved after the payment goes through.</p>
+    </form>
+
+    <form class="pay-step" data-step="otp" novalidate hidden>
+      <div class="pay-provider">
+        <span class="pay-badge" id="payOtpBadge" aria-hidden="true"></span>
+        <div><strong id="payOtpProvider"></strong><span id="payOtpAmount"></span></div>
+      </div>
+      <p class="pay-otp-msg" id="payOtpMsg"></p>
+      <label class="modal-field">
+        <span>6-digit code</span>
+        <input type="text" id="payOtp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" class="pay-otp-input">
+      </label>
+      <p class="pay-demo">Demo: any 6 digits works. Enter <strong>000000</strong> to see a declined payment.</p>
+      <p class="modal-warning is-error" id="payOtpError" role="alert" hidden></p>
+      <button type="submit" class="btn btn-amber pay-btn" id="payConfirmBtn">Confirm payment</button>
+      <div class="pay-otp-actions">
+        <button type="button" class="x-text-btn" data-pay="resend" id="payResend"></button>
+        <button type="button" class="x-text-btn" data-pay="change">Use another method</button>
+      </div>
+    </form>
+
+    <div class="pay-step pay-processing" data-step="processing" hidden role="status">
+      <span class="pay-spinner" aria-hidden="true"></span>
+      <strong>Processing payment&hellip;</strong>
+      <span>Please don't close this window.</span>
+    </div>`;
+  const modalBodyEl = modalEl.querySelector('.modal-body');
+  if (modalBodyEl) modalBodyEl.insertBefore(payView, modalConfirmView);
+  const payQ = (sel) => payView.querySelector(sel);
+  const payMethodForm = payQ('[data-step="method"]');
+  const payOtpForm = payQ('[data-step="otp"]');
+  const payProcessing = payQ('[data-step="processing"]');
+  const payError = payQ('#payError');
+  const payOtpError = payQ('#payOtpError');
+  let pendingBooking = null;
+  let pendingCharges = null;
+  let payResendTimer = null;
+
+  const cleanMobile = (v) => {
+    let d = String(v).replace(/[^\d+]/g, '');
+    if (d.startsWith('+63')) d = `0${d.slice(3)}`;
+    else if (d.startsWith('63') && d.length === 12) d = `0${d.slice(2)}`;
+    return d;
+  };
+  const validMobile = (v) => /^09\d{9}$/.test(cleanMobile(v));
+  const maskMobile = (v) => { const d = cleanMobile(v); return `${d.slice(0, 4)} ••• ${d.slice(-4)}`; };
+  const payMethod = () => (payQ('input[name="payMethod"]:checked') || {}).value || 'gcash';
+  const providerName = () => (payMethod() === 'bank' ? (payQ('#payBank').value || 'Your bank') : STORE.METHOD_LABEL[payMethod()]);
+
+  function showPayStep(step) {
+    [payMethodForm, payOtpForm, payProcessing].forEach((el) => { el.hidden = el.dataset.step !== step; });
+    payQ('.pay-back').hidden = step !== 'method';
+  }
+  function syncPayMethod() {
+    const m = payMethod();
+    payQ('[data-for="wallet"]').hidden = m === 'bank';
+    payQ('[data-for="bank"]').hidden = m !== 'bank';
+    payQ('#payMobileLabel').textContent = `${STORE.METHOD_LABEL[m === 'bank' ? 'gcash' : m]} mobile number`;
+    payView.querySelectorAll('.pay-method').forEach((l) => l.classList.toggle('is-selected', l.querySelector('input').checked));
+    payError.hidden = true;
+  }
+  function openPayment(booking, r) {
+    pendingBooking = booking;
+    pendingCharges = STORE.charges(r, booking.guests, booking.preorder);
+    const c = pendingCharges;
+    payQ('#payWhat').textContent = `${r.name} · ${formatDateTime(fromISODate(booking.date), booking.minutes)} · ${guestsLabel(booking.guests)}`;
+    const line = (label, value, cls, key, sub) => {
+      const id = key ? `payHelp${++helpSeq}` : '';
+      return `<div${cls ? ` class="${cls}"` : ''}><dt>${label}${key ? ` <button type="button" class="charge-help" aria-expanded="false" aria-controls="${id}" aria-label="What is the ${label.toLowerCase()}?">?</button>` : ''}${sub ? `<small>${sub}</small>` : ''}</dt><dd>${value}</dd></div>${key ? `<p class="charge-help-text" id="${id}" hidden>${CHARGE_HELP[key](c)}</p>` : ''}`;
+    };
+    payQ('#payBreakdown').innerHTML = [
+      line('Reservation tax', peso(c.tax), '', 'tax'),
+      line('Cancellation fee', peso(c.cancelFee), '', 'cancel', `${peso(c.perGuest)} × ${c.guests}`),
+      c.preorderDeposit ? line('Pre-order deposit', peso(c.preorderDeposit), '', 'preorder', `20% of ${peso(c.preorderSubtotal)}`) : '',
+      line('Total due now', peso(c.total), 'is-total'),
+    ].join('') + `<p class="pay-credit">${peso(c.credit)} is returned when you show up, taken off your bill. The reservation tax pays for TableFor's service and isn't returned.</p>`;
+    payQ('#payStartBtn').textContent = `Pay ${peso(c.total)}`;
+    if (!payQ('#payMobile').value) payQ('#payMobile').value = booking.phone || '';
+    if (!payQ('#payBankName').value) payQ('#payBankName').value = booking.fullName || '';
+    payError.hidden = true;
+    syncPayMethod();
+    showPayStep('method');
+    showModalView(payView);
+    payQ('#payTitle').focus({ preventScroll: true });
+  }
+  payView.addEventListener('change', (e) => { if (e.target.name === 'payMethod') syncPayMethod(); });
+  function payFail(box, msg) { box.textContent = msg; box.hidden = false; }
+
+  payMethodForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    payError.hidden = true;
+    const m = payMethod();
+    if (m === 'bank') {
+      if (!payQ('#payBank').value) { payFail(payError, 'Choose your bank.'); payQ('#payBank').focus(); return; }
+      if (!/\p{L}.*\p{L}/u.test(payQ('#payBankName').value.trim())) { payFail(payError, 'Enter the name on the bank account.'); payQ('#payBankName').focus(); return; }
+    } else if (!validMobile(payQ('#payMobile').value)) {
+      payFail(payError, `Enter the 11-digit mobile number of your ${STORE.METHOD_LABEL[m]} account, like 0917 123 4567.`);
+      payQ('#payMobile').focus();
+      return;
+    }
+    // "Send" a one-time code, as GCash, Maya and banks do before a payment
+    const badge = payQ('#payOtpBadge');
+    badge.className = `pay-badge is-${m}`;
+    badge.innerHTML = payQ(`input[value="${m}"]`).closest('.pay-method').querySelector('.pay-badge').innerHTML;
+    payQ('#payOtpProvider').textContent = providerName();
+    payQ('#payOtpAmount').textContent = `Pay ${peso(pendingCharges.total)} to TableFor`;
+    payQ('#payOtpMsg').textContent = m === 'bank'
+      ? `${providerName()} sent a 6-digit code to the mobile number registered to your account.`
+      : `We sent a 6-digit code to ${maskMobile(payQ('#payMobile').value)}.`;
+    payQ('#payOtp').value = '';
+    payOtpError.hidden = true;
+    startResendTimer();
+    showPayStep('otp');
+    payQ('#payOtp').focus();
+  });
+  function startResendTimer() {
+    clearInterval(payResendTimer);
+    let left = 30;
+    const btn = payQ('#payResend');
+    const tick = () => {
+      btn.disabled = left > 0;
+      btn.textContent = left > 0 ? `Resend code in ${left}s` : 'Resend code';
+      left -= 1;
+      if (left < -1) clearInterval(payResendTimer);
+    };
+    tick();
+    payResendTimer = setInterval(tick, 1000);
+  }
+  payQ('#payOtp').addEventListener('input', (e) => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6); });
+  payView.addEventListener('click', (e) => {
+    const act = e.target.closest('[data-pay]');
+    if (!act) return;
+    if (act.dataset.pay === 'back') { showModalView(modalBookingView); modalSubmit.focus({ preventScroll: true }); }
+    else if (act.dataset.pay === 'change') { clearInterval(payResendTimer); showPayStep('method'); payQ('#payTitle').focus(); }
+    else if (act.dataset.pay === 'resend') { startResendTimer(); payOtpError.hidden = true; payQ('#payOtp').focus(); }
+  });
+
+  payOtpForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    payOtpError.hidden = true;
+    const code = payQ('#payOtp').value;
+    if (!/^\d{6}$/.test(code)) { payFail(payOtpError, 'Enter the 6-digit code.'); payQ('#payOtp').focus(); return; }
+    const r = modalRestaurant;
+    const b = pendingBooking;
+    // Last check before charging: is the table still free?
+    if (b.table && r.layout) {
+      const t = r.layout.tables.find((x) => x.id === b.table);
+      if (t && tableTaken(r, b.date, b.minutes, t)) {
+        const fit = r.layout.tables.filter((x) => tableFits(x, b.guests) && !tableTaken(r, b.date, b.minutes, x)).sort((x, y) => x.seats - y.seats)[0];
+        if (!fit) {
+          showPayStep('method');
+          payFail(payError, `Sorry, ${r.name} just filled up at ${formatTime(b.minutes)}. You haven't been charged. Go back and pick another time.`);
+          return;
+        }
+        b.table = fit.id;
+      }
+    }
+    clearInterval(payResendTimer);
+    showPayStep('processing');
+    const m = payMethod();
+    setTimeout(() => {
+      if (!modalOverlay.classList.contains('is-open') || pendingBooking !== b) return; // closed while processing
+      if (code === '000000') {
+        showPayStep('method');
+        payFail(payError, `${providerName()} declined the payment. You haven't been charged and no table is reserved. Try again or choose another method.`);
+        payQ('#payStartBtn').focus();
+        return;
+      }
+      const c = pendingCharges;
+      b.payment = {
+        status: 'paid',
+        method: m,
+        bank: m === 'bank' ? payQ('#payBank').value : null,
+        account: m === 'bank' ? null : maskMobile(payQ('#payMobile').value),
+        txn: `PAY-${Math.random().toString(36).slice(2, 6).toUpperCase()}${Date.now().toString(36).slice(-4).toUpperCase()}`,
+        paidAt: Date.now(),
+        tax: c.tax, perGuest: c.perGuest, cancelFee: c.cancelFee,
+        preorderSubtotal: c.preorderSubtotal, preorderDeposit: c.preorderDeposit,
+        credit: c.credit, total: c.total,
+      };
+      finishBooking(b, r);
+    }, 1600);
+  });
+
+  function finishBooking(booking, r) {
+    pendingBooking = null;
     saveBookings([...getBookings(), booking]);
     rememberDinerName(booking.fullName);
     lastBooking = booking;
@@ -1818,20 +2203,28 @@
     byId('modalConfirmWhen').textContent = when;
     byId('modalConfirmParty').textContent = booking.guests === 1 ? '1 guest' : `${booking.guests} guests`;
     byId('modalConfirmRef').textContent = booking.ref;
-    const v = findVoucher(appliedVoucher);
+    const v = findVoucher(booking.voucher);
     byId('modalConfirmVoucher').textContent = v ? `${v.code} · ${v.value} ${v.unit}` : '';
     byId('modalConfirmVoucherRow').hidden = !v;
-    const tbl = tableForBooking && r.layout ? r.layout.tables.find((x) => x.id === tableForBooking) : null;
+    const tbl = booking.table && r.layout ? r.layout.tables.find((x) => x.id === booking.table) : null;
     byId('modalConfirmTable').textContent = tbl ? tableLabel(tbl) : '';
     byId('modalConfirmTableRow').hidden = !tbl;
     byId('modalConfirmPreorder').textContent = preorderSummary(booking.preorder);
     byId('modalConfirmPreorderRow').hidden = !booking.preorder.length;
     byId('modalConfirmOccasion').textContent = booking.occasion;
     byId('modalConfirmOccasionRow').hidden = !booking.occasion;
+    const details = modalConfirmView.querySelector('.confirm-details');
+    if (details && !details.querySelector('#modalConfirmPaid')) {
+      details.insertAdjacentHTML('beforeend', '<div><dt>Paid</dt><dd id="modalConfirmPaid"></dd></div><div><dt>Payment ref</dt><dd id="modalConfirmTxn"></dd></div>');
+    }
+    if (details) {
+      details.querySelector('#modalConfirmPaid').textContent = `${peso(booking.payment.total)} · ${STORE.paidWith(booking.payment)}`;
+      details.querySelector('#modalConfirmTxn').textContent = booking.payment.txn;
+    }
     modalDirections.href = mapsUrl(r);
     showModalView(modalConfirmView);
     modalDoneBtn.focus({ preventScroll: true });
-  });
+  }
 
   // "Add to calendar": a standard .ics file that phone and desktop calendars open
   modalCalendarBtn.addEventListener('click', () => { if (lastBooking) downloadIcs(lastBooking); });
@@ -2352,7 +2745,7 @@
             <span class="x-status-chip ${pending ? 'is-pending' : 'is-confirmed'}">${pending ? 'Awaiting confirmation' : 'Confirmed'}</span>
             <span class="acct-meta">${escText(formatDateTime(fromISODate(b.date), b.minutes))} · ${guestsLabel(b.guests)}</span>
             <span class="acct-meta">Ref ${escText(b.ref)}${b.table ? ` · Table ${escText(b.table)}` : ''}${b.voucher ? ` · Voucher ${escText(b.voucher)}` : ''}</span>
-            ${confirming ? `<span class="acct-warn">${late ? `Less than 2 hours to go, so your ₱${BOOKING_FEE} deposit goes to the restaurant.` : `Your ₱${BOOKING_FEE} deposit will be refunded in full.`}</span>` : ''}
+            ${confirming ? `<span class="acct-warn">${escText(STORE.refundNote(b, late))}</span>` : ''}
           </div>
           <div class="acct-actions">
             ${confirming
@@ -2369,7 +2762,7 @@
             <strong>${escText(b.name)}</strong>
             <span class="x-status-chip is-declined">Declined by the restaurant</span>
             <span class="acct-meta">${escText(formatDateTime(fromISODate(b.date), b.minutes))} · ${guestsLabel(b.guests)} · Ref ${escText(b.ref)}</span>
-            <span class="acct-meta">Your ₱${BOOKING_FEE} deposit will be refunded in full.</span>
+            <span class="acct-meta">${escText(STORE.refundNote(b, false))}</span>
           </div>
           <div class="acct-actions"><button type="button" class="x-text-btn" data-acct-booking="dismiss">Dismiss</button></div>
         </li>`).join('')}
@@ -2474,6 +2867,7 @@
     const v = findVoucher(b.voucher);
     const tbl = b.table && r && r.layout ? r.layout.tables.find((x) => x.id === b.table) : null;
     const lines = b.preorder || [];
+    const pay = STORE.paymentOf(b);
     const row = (label, value) => (value ? `<div><dt>${label}</dt><dd>${value}</dd></div>` : '');
     detailBody.innerHTML = `
       <div class="acct-detail-hero">
@@ -2500,14 +2894,25 @@
         ${lines.length ? `<div class="acct-preorder">
           <h4>Pre-order</h4>
           <ul>${lines.map((l) => `<li><span>${l.qty} × ${escText(l.name)}</span><span>${peso(l.qty * l.price)}</span></li>`).join('')}</ul>
-          <p><span>Total, paid at the restaurant</span><strong>${peso(preorderTotal(lines))}</strong></p>
+          <p><span>Pre-order total</span><strong>${peso(preorderTotal(lines))}</strong></p>
         </div>` : ''}
 
+        ${pay.legacy ? `<div class="acct-policy">
+          <p><strong>${peso(pay.total)} table deposit</strong>, credited in full to your bill when you dine. Your table is held for 15 minutes past your booking time.</p>` : `<div class="acct-pay">
+          <h4>Payment</h4>
+          <ul>
+            <li><span>Reservation tax</span><span>${peso(pay.tax)}</span></li>
+            <li><span>Cancellation fee (${peso(pay.perGuest)} × ${b.guests})</span><span>${peso(pay.cancelFee)}</span></li>
+            ${pay.preorderDeposit ? `<li><span>Pre-order deposit (20%)</span><span>${peso(pay.preorderDeposit)}</span></li>` : ''}
+          </ul>
+          <p><span>Paid with ${escText(STORE.paidWith(pay))}</span><strong>${peso(pay.total)}</strong></p>
+          <p class="acct-meta">Payment ref ${escText(pay.txn)} · Prototype, no money was moved</p>
+        </div>
         <div class="acct-policy">
-          <p><strong>₱${BOOKING_FEE} table deposit</strong>, credited in full to your bill when you dine. Your table is held for 15 minutes past your booking time.</p>
+          <p><strong>${peso(pay.credit)}</strong> is returned when you show up, taken off your bill${lines.length ? `, so you pay ${peso(Math.max(0, preorderTotal(lines) - pay.credit))} for your pre-order at the restaurant` : ''}. The reservation tax pays for TableFor's service and isn't returned. Your table is held for 15 minutes past your booking time.</p>`}
           <p>${late
-            ? `It's less than 2 hours to go, so if you cancel now the deposit goes to the restaurant.`
-            : `Free cancellation, with a full deposit refund, until <strong>${escText(minutesToLabel(freeUntil, freeUntil.getHours() * 60 + freeUntil.getMinutes()))}</strong>.`} <a href="about.html#policies">Booking policies</a></p>
+            ? `<strong>Free cancellation has ended.</strong> If you cancel now, your ${peso(pay.cancelFee)} cancellation fee${pay.preorderDeposit ? ` and ${peso(pay.preorderDeposit)} pre-order deposit` : ''} ${pay.preorderDeposit ? 'are' : 'is'} forfeited to the restaurant${pay.tax ? ' and the reservation tax isn\'t refunded' : ''}.`
+            : `Free cancellation, with a full ${peso(pay.total)} refund, until <strong>${escText(minutesToLabel(freeUntil, freeUntil.getHours() * 60 + freeUntil.getMinutes()))}</strong>.`} <a href="about.html#policies">Booking policies</a></p>
         </div>
 
         <div class="acct-detail-actions">
@@ -2517,7 +2922,7 @@
         </div>
         <div class="acct-detail-cancel${detailConfirm ? ' is-confirming' : ''}">
           ${detailConfirm
-            ? `<p class="acct-warn">${late ? `Less than 2 hours to go, so your ₱${BOOKING_FEE} deposit goes to the restaurant.` : `Your ₱${BOOKING_FEE} deposit will be refunded in full.`}</p>
+            ? `<p class="acct-warn">${escText(STORE.refundNote(b, late))}</p>
                <div><button type="button" class="btn btn-dark btn-sm" data-acct-detail="cancel-yes">Cancel booking</button>
                <button type="button" class="btn btn-outline-dark btn-sm" data-acct-detail="cancel-no">Keep it</button></div>`
             : '<button type="button" class="x-text-btn acct-cancel-link" data-acct-detail="cancel">Cancel this booking</button>'}
@@ -2553,7 +2958,14 @@
     if (!btn) return;
     const what = btn.dataset.acctDetail;
     if (what === 'calendar') { const b = getBookings().find((x) => x.ref === detailRef); if (b) downloadIcs(b); return; }
-    if (what === 'cancel') detailConfirm = true;
+    if (what === 'cancel') {
+      const b = getBookings().find((x) => x.ref === detailRef);
+      if (b && window.TableForStore.isLateCancel(b)) {
+        openLateCancel(detailRef, () => { showAcctList(); showToast('Booking cancelled. The cancellation fee went to the restaurant.'); });
+        return;
+      }
+      detailConfirm = true;
+    }
     if (what === 'cancel-no') detailConfirm = false;
     if (what === 'cancel-yes') {
       const ref = detailRef;
@@ -2630,7 +3042,11 @@
     const ref = act.closest('[data-ref]').dataset.ref;
     const what = act.dataset.acctBooking;
     if (what === 'details') { showAcctDetail(ref); return; }
-    if (what === 'cancel') acctConfirmRef = ref;
+    if (what === 'cancel') {
+      const b = getBookings().find((x) => x.ref === ref);
+      if (b && window.TableForStore.isLateCancel(b)) { openLateCancel(ref, () => showToast('Booking cancelled. The cancellation fee went to the restaurant.')); return; }
+      acctConfirmRef = ref;
+    }
     if (what === 'cancel-no') acctConfirmRef = null;
     if (what === 'cancel-yes') { acctConfirmRef = null; cancelBooking(ref); showToast('Booking cancelled.'); return; }
     if (what === 'dismiss') { saveBookings(getBookings().map((b) => (b.ref === ref ? { ...b, dismissed: true } : b))); return; }
@@ -2860,6 +3276,9 @@
     bookingStart,
     FREE_CANCEL_MINUTES,
     BOOKING_FEE,
+    refundNote: (b, late) => window.TableForStore.refundNote(b, late),
+    isLateCancel: (b) => window.TableForStore.isLateCancel(b),
+    openLateCancel,
   };
 
   // Home page vouchers: claim a code here, enter it when booking

@@ -471,14 +471,13 @@
     const declined = TF.declinedBookings();
     bookingsBox.hidden = !list.length && !declined.length;
     if (bookingsBox.hidden) { bookingsBox.innerHTML = ''; return; }
-    const now = Date.now();
     bookingsBox.innerHTML = `
       <h2 class="x-bookings-title">Your upcoming bookings <span>${list.length + declined.length}</span></h2>
       <ul class="x-bookings-list">
         ${list.map((b) => {
           const r = RESTAURANTS.find((x) => x.id === b.id);
           const start = TF.bookingStart(b);
-          const late = start.getTime() - now < TF.FREE_CANCEL_MINUTES * 60000;
+          const late = TF.isLateCancel(b);
           const when = TF.whenLabel(start, b.minutes);
           const confirming = confirmingRef === b.ref;
           return `<li class="x-booking${confirming ? ' is-confirming' : ''}" data-ref="${esc(b.ref)}">
@@ -486,7 +485,7 @@
             <div class="x-booking-text">
               <strong>${esc(b.name)} ${TF.bookingStatus(b) === 'pending' ? '<span class="x-status-chip is-pending">Awaiting confirmation</span>' : '<span class="x-status-chip is-confirmed">Confirmed</span>'}</strong>
               <span>${esc(when)} · ${guestsText(b.guests)} · Ref ${esc(b.ref)}${b.voucher ? ` · ${esc(b.voucher)}` : ''}</span>
-              ${confirming ? `<span class="x-booking-warn">${late ? `Less than 2 hours to go, so your ₱${TF.BOOKING_FEE} deposit goes to the restaurant.` : `Your ₱${TF.BOOKING_FEE} deposit will be refunded in full.`}</span>` : ''}
+              ${confirming ? `<span class="x-booking-warn">${esc(TF.refundNote(b, late))}</span>` : ''}
             </div>
             <div class="x-booking-actions">
               ${confirming
@@ -502,7 +501,7 @@
             <span class="x-booking-thumb" aria-hidden="true"></span>
             <div class="x-booking-text">
               <strong>${esc(b.name)} <span class="x-status-chip is-declined">Declined by the restaurant</span></strong>
-              <span>${esc(TF.whenLabel(TF.bookingStart(b), b.minutes))} · ${guestsText(b.guests)} · Ref ${esc(b.ref)}. Your ₱${TF.BOOKING_FEE} deposit will be refunded in full.</span>
+              <span>${esc(TF.whenLabel(TF.bookingStart(b), b.minutes))} · ${guestsText(b.guests)} · Ref ${esc(b.ref)}. ${esc(TF.refundNote(b, false))}</span>
             </div>
             <div class="x-booking-actions">
               <button type="button" class="x-text-btn" data-booking="dismiss">Dismiss</button>
@@ -516,7 +515,11 @@
     const ref = btn.closest('[data-ref]').dataset.ref;
     const act = btn.dataset.booking;
     if (act === 'details') { TF.openBookingDetails(ref); return; }
-    if (act === 'cancel') confirmingRef = ref;
+    if (act === 'cancel') {
+      const b = TF.upcomingBookings().find((x) => x.ref === ref);
+      if (b && TF.isLateCancel(b)) { TF.openLateCancel(ref); return; } // warning pop-up: the cancellation fee is forfeited
+      confirmingRef = ref;
+    }
     if (act === 'cancel-no') confirmingRef = null;
     if (act === 'cancel-yes') { confirmingRef = null; TF.cancelBooking(ref); return; } // re-renders via event
     if (act === 'dismiss') { TF.dismissBooking(ref); return; }

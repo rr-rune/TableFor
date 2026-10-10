@@ -19,7 +19,7 @@
 //                listing (null = no number confirmed; the button shows as unavailable)
 // ============================================================
 
-window.TABLEFOR_BOOKING_FEE = 100; // ₱, credited back to the food bill
+window.TABLEFOR_BOOKING_FEE = 100; // ₱, the old flat deposit (kept for bookings made before online payment)
 
 // ------------------------------------------------------------
 // Vouchers (claimed on the Home page, applied in the booking form)
@@ -435,5 +435,7 @@ window.TABLEFOR_VOUCHERS = [
     r.menu = menus[r.id] || [];
     r.layout = layouts[r.id] || null;
     r.petFriendly = petFriendly.has(r.id);
+    // Reservation tax each restaurant charges per booking (owners change it in the Partner Portal; minimum ₱100)
+    if (r.tax == null) r.tax = r.price >= 4 ? 200 : r.price === 3 ? 150 : 100;
   });
 })();
